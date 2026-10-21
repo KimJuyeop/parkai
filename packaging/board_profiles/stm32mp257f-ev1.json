@@ -1,0 +1,9 @@
+{
+  "match": "st,stm32mp257f-ev1",
+  "name": "STM32MP257F-EV1",
+  "leds": { "run": null, "camera_error": null, "server_error": null, "model_error": null },
+  "buttons": { "network_reset": null },
+  "nics": { "default": null },
+  "storage": { "results_max_mb": 300 },
+  "_note": "LED/버튼/NIC 이름은 보드에서 /sys/class/leds, gpioinfo, ip link 확인 후 채운다"
+}

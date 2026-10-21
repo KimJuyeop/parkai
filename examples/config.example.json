@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "site": { "name": "테스트 현장", "board_name": "B1-A" },
+  "network": { "board_ip": null },
+  "runtime": {
+    "cycle_target_sec": 10,
+    "fetch_concurrency": 8,
+    "fetch_timeout_sec": 3,
+    "fetch_retries": 1,
+    "results": { "max_mb": 300, "save_interval_sec": 300 }
+  },
+  "detection": {
+    "preset": "legacy",
+    "model": null,
+    "classes": { "car": { "enabled": true, "conf": 0.45 } },
+    "nms_iou": 0.45
+  },
+  "camera_profiles": {
+    "dual_top_half": {
+      "snapshot_url": "http://{ip}:{port}/snapshot.jpg",
+      "auth": "digest",
+      "ref_size": [1280, 960],
+      "views": [[0, 0, 640, 480], [640, 0, 640, 480]]
+    }
+  },
+  "cameras": [
+    {
+      "ip": "192.168.13.21",
+      "port": 80,
+      "profile": "dual_top_half",
+      "user": "admin",
+      "password": "",
+      "board": "B1-A",
+      "slots": [
+        { "no": 1, "type": "normal", "line": [[136, 236], [175, 198]] },
+        { "no": 2, "type": "normal", "line": [[369, 244], [342, 193]] },
+        { "no": 3, "type": "normal", "line": [[778, 225], [805, 190]] },
+        { "no": 4, "type": "normal", "line": [[960, 228], [970, 184]] },
+        { "no": 5, "type": "normal", "line": [[1132, 227], [1104, 177]] }
+      ]
+    }
+  ],
+  "server": {
+    "enabled": false,
+    "base_url": "http://192.168.0.197:8000",
+    "path": "/api/camerastatuses",
+    "timeout_sec": 2
+  },
+  "indicator": { "enabled": false }
+}

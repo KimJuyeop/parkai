@@ -1,0 +1,20 @@
+[Unit]
+Description=parkai inference worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=parkai
+Group=parkai
+WorkingDirectory=/opt/parkai/current
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/parkai/current/venv/bin/python -m parkai.worker --config /var/lib/parkai/config.json --run-dir /run/parkai --data-dir /var/lib/parkai --models-dir /var/lib/parkai/models
+RuntimeDirectory=parkai
+RuntimeDirectoryPreserve=yes
+Restart=always
+RestartSec=3
+# TODO: sd_notify 연동 후 Type=notify + WatchdogSec=60
+
+[Install]
+WantedBy=multi-user.target

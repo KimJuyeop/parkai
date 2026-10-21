@@ -1,0 +1,34 @@
+[project]
+name = "parkai"
+version = "0.1.0"
+description = "STM32MP2 기반 주차면 차량 유무 판단 엣지 프로그램"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  "pydantic>=2.6",
+  "requests>=2.31",
+  "numpy",
+]
+
+[project.optional-dependencies]
+# 보드에서는 OpenCV를 X-LINUX-AI 시스템 패키지로 사용하므로 PC 개발 시에만 설치
+pc = ["opencv-python-headless", "onnxruntime"]
+dev = ["pytest", "ruff", "httpx"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["parkai*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

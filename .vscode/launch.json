@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "워커 (재생, fixture)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "parkai.worker",
+      "args": ["--config", "examples/config.example.json", "--replay", "samples",
+               "--backend", "fixture", "--run-dir", "run", "--data-dir", "data", "-v"]
+    },
+    {
+      "name": "웹 (8080)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "parkai.web",
+      "args": ["--port", "8080"],
+      "env": { "PARKAI_CONFIG": "examples/config.example.json", "PARKAI_RUN_DIR": "run" }
+    }
+  ]
+}

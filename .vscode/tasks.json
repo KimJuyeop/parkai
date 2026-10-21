@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    { "id": "boardIp", "type": "promptString", "description": "보드 IP", "default": "192.168.0.100" }
+  ],
+  "tasks": [
+    {
+      "label": "테스트",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m pytest -q",
+      "group": "test"
+    },
+    {
+      "label": "재생 모드 실행 (fixture)",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m parkai.worker --config examples/config.example.json --replay samples --backend fixture --run-dir run --data-dir data -v"
+    },
+    {
+      "label": "웹 실행 (8080)",
+      "type": "shell",
+      "command": "${command:python.interpreterPath} -m parkai.web --port 8080",
+      "options": { "env": { "PARKAI_CONFIG": "examples/config.example.json", "PARKAI_RUN_DIR": "run" } }
+    },
+    {
+      "label": "보드로 코드 전송",
+      "type": "shell",
+      "command": "ssh root@${input:boardIp} mkdir -p /opt/parkai/dev && scp -r parkai examples pyproject.toml root@${input:boardIp}:/opt/parkai/dev/"
+    }
+  ]
+}
