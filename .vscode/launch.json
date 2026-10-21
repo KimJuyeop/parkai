@@ -2,20 +2,27 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "워커 (재생, fixture)",
+      "name": "개발 실행 (웹 8080 + 워커, 실제 카메라)",
       "type": "debugpy",
       "request": "launch",
-      "module": "parkai.worker",
-      "args": ["--config", "examples/config.example.json", "--replay", "samples",
-               "--backend", "fixture", "--run-dir", "run", "--data-dir", "data", "-v"]
+      "program": "${workspaceFolder}/tools/dev.py",
+      "console": "integratedTerminal"
     },
     {
-      "name": "웹 (8080)",
+      "name": "개발 실행 (웹 8080 + 워커, samples 재생)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/dev.py",
+      "args": ["--replay"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "웹만 (8080)",
       "type": "debugpy",
       "request": "launch",
       "module": "parkai.web",
       "args": ["--port", "8080"],
-      "env": { "PARKAI_CONFIG": "examples/config.example.json", "PARKAI_RUN_DIR": "run" }
+      "env": { "PARKAI_CONFIG": "data/config.json", "PARKAI_RUN_DIR": "run", "PARKAI_SAMPLES": "samples" }
     }
   ]
 }

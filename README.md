@@ -19,8 +19,7 @@ parkai/
   backends/    stai (보드 NPU), onnx (PC), fixture (모델 없이 개발)
   postprocess/ 모델 구조별 후처리 (yolox ...)
   outputs/     서버 전송, 만공등 제어
-  web/         FastAPI (API + 웹 툴 정적 파일)
-frontend/      웹 설정 툴 (React + Vite, 빌드 결과만 번들에 포함)
+  web/         FastAPI API + 웹 설정 화면 (static/, 빌드 없는 순수 JS)
 packaging/     번들 빌드, install.sh, systemd, 보드 프로필
 tools/         판정 규칙 비교, 벤치마크 등
 tests/
@@ -37,20 +36,17 @@ pip install -e ".[pc,dev]"
 pytest
 ```
 
-## 실행 (PC, 재생 모드)
-
-현장 스냅샷을 `samples/<카메라IP>/*.jpg`에 넣고 실행한다.
-모델이 없을 때는 `--backend fixture`로, 이미지 옆 `*.json`의 박스를 검출 결과로 사용한다.
+## 실행 (PC)
 
 ```sh
-# 워커
-python -m parkai.worker --config examples/config.example.json \
-    --replay samples --backend fixture --run-dir run --data-dir data --cycles 3
-
-# 웹 (다른 터미널)
-PARKAI_CONFIG=examples/config.example.json PARKAI_RUN_DIR=run python -m parkai.web --port 8080
-# http://localhost:8080/api/v1/status
+python tools/dev.py            # 웹(8080) + 워커, 실제 카메라에서 스냅샷
+python tools/dev.py --replay   # samples/<카메라IP>/*.jpg 재생
 ```
+
+- 브라우저에서 http://localhost:8080 → 대시보드 / 카메라 설정 / 시스템 설정
+- 설정 파일은 `data/config.json` (처음 실행 시 예시를 복사, Git에 올라가지 않음)
+- 카메라에 접속할 수 없으면 `samples/<카메라IP>/`의 마지막 이미지를 설정 화면에 보여줌
+- 모델이 없을 때는 fixture 검출기를 사용: 이미지 옆 `*.json`의 박스를 검출 결과로 쓰고, 없으면 검출 없음(전부 빈칸)
 
 fixture 박스 형식 (`samples/192.168.13.21/0001.json`, 원본 스냅샷 좌표):
 

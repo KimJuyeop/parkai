@@ -21,7 +21,6 @@ mkdir -p "$STAGE/app" "$STAGE/wheels" "$STAGE/systemd"
 cp -r "$ROOT/parkai" "$ROOT/pyproject.toml" "$ROOT/README.md" "$STAGE/app/"
 mkdir -p "$STAGE/app/examples"
 cp "$ROOT/examples/config.example.json" "$STAGE/app/examples/config.default.json"
-if [ -d "$ROOT/frontend/dist" ]; then cp -r "$ROOT/frontend/dist" "$STAGE/app/frontend"; fi
 
 # 보드용 wheel (numpy는 시스템 패키지 사용)
 python3 -m pip download --dest "$STAGE/wheels" \
