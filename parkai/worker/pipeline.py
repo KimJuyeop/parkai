@@ -33,7 +33,7 @@ from ..core.system import board_ip, device_id
 from ..outputs.indicator import IndicatorController, decide_color
 from ..outputs.server import ServerSender, build_payload
 from .draw import annotate
-from .sources import HttpSnapshotSource, ReplaySource, SourceError
+from .sources import BrokenSource, HttpSnapshotSource, ReplaySource, SourceError
 
 log = logging.getLogger(__name__)
 
@@ -106,7 +106,10 @@ class Worker:
             return ReplaySource(self.replay_dir / cam.ip)
         rt = self.cfg.runtime
         profile = self.cfg.camera_profiles[cam.profile]
-        return HttpSnapshotSource(cam, profile, rt.fetch_timeout_sec, rt.fetch_retries)
+        try:
+            return HttpSnapshotSource(cam, profile, rt.fetch_timeout_sec, rt.fetch_retries)
+        except SourceError as e:  # URL 설정 오류 등: 워커는 계속 돌고 해당 카메라만 오류
+            return BrokenSource(str(e))
 
     def _sync_cameras(self) -> None:
         _, stab = self.cfg.detection.effective()

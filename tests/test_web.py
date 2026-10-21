@@ -43,3 +43,23 @@ def test_invalid_config_rejected(tmp_path, monkeypatch):
 def test_status_when_worker_not_running(tmp_path, monkeypatch):
     client, _ = make_client(tmp_path, monkeypatch)
     assert client.get("/api/v1/status").json()["running"] is False
+
+
+def test_snapshot_bad_url_template_is_clear_error(tmp_path, monkeypatch):
+    client, cfg = make_client(tmp_path, monkeypatch)
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    data["camera_profiles"]["dual_top_half"]["snapshot_url"] = "http://{camip}/snap.jpg"
+    cfg.write_text(json.dumps(data), encoding="utf-8")
+    r = client.get("/api/v1/cameras/192.168.13.21/snapshot")
+    assert r.status_code == 502  # 500이 아니라 원인 메시지
+    assert "URL 형식" in r.json()["detail"]
+
+
+def test_snapshot_url_accepts_ipaddress():
+    from parkai.core.config import Camera
+    from parkai.worker.sources import build_snapshot_url
+
+    cam = Camera(ip="192.168.0.5", port=8080, profile="p")
+    url = "http://{ipaddress}/cgi-bin/webSetup.cgi?action=videoStreamSnapshot&mode=1"
+    assert build_snapshot_url(url, cam).startswith("http://192.168.0.5/cgi-bin")
+    assert build_snapshot_url("http://{ip}:{port}/x", cam) == "http://192.168.0.5:8080/x"

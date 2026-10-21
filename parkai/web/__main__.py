@@ -12,6 +12,7 @@ def main() -> None:
     ap.add_argument("--host", default="0.0.0.0")
     ap.add_argument("--port", type=int, default=80)
     args = ap.parse_args()
+    print(f"웹 설정 화면: http://localhost:{args.port}  (다른 PC에서는 http://<이 PC의 IP>:{args.port})")
     uvicorn.run("parkai.web.app:app", host=args.host, port=args.port, workers=1)
 
 

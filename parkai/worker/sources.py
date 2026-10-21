@@ -16,9 +16,24 @@ class SourceError(Exception):
     pass
 
 
+URL_FIELDS = "{ip}, {ipaddress}, {port}"
+
+
+def build_snapshot_url(template: str, cam: Camera) -> str:
+    """스냅샷 URL 템플릿 치환. {ip}와 {ipaddress}는 같은 값."""
+    try:
+        return template.format(ip=cam.ip, ipaddress=cam.ip, port=cam.port)
+    except (KeyError, IndexError, ValueError) as e:
+        raise SourceError(f"스냅샷 URL 형식 오류 ({e}). 사용할 수 있는 값: {URL_FIELDS}") from e
+
+
+def _looks_like_image(data: bytes) -> bool:
+    return data[:3] == b"\xff\xd8\xff" or data[:8] == b"\x89PNG\r\n\x1a\n"
+
+
 class HttpSnapshotSource:
     def __init__(self, cam: Camera, profile: CameraProfile, timeout: float, retries: int):
-        self.url = profile.snapshot_url.format(ip=cam.ip, port=cam.port)
+        self.url = build_snapshot_url(profile.snapshot_url, cam)
         self.timeout = timeout
         self.retries = retries
         self.session = requests.Session()
@@ -32,11 +47,26 @@ class HttpSnapshotSource:
         for _ in range(self.retries + 1):
             try:
                 r = self.session.get(self.url, timeout=self.timeout)
+                if r.status_code == 401:
+                    raise SourceError("인증 실패 (401): 사용자/비밀번호 또는 인증 방식(basic/digest) 확인")
                 r.raise_for_status()
+                if not _looks_like_image(r.content):
+                    head = r.content[:120].decode("utf-8", "replace")
+                    raise SourceError(f"이미지가 아닌 응답 ({r.headers.get('Content-Type')}): {head}")
                 return r.content, None
             except requests.RequestException as e:
                 last = e
-        raise SourceError(str(last))
+        raise SourceError(f"{self.url} - {last}")
+
+
+class BrokenSource:
+    """설정 오류로 만들 수 없는 입력. fetch할 때마다 같은 오류를 낸다."""
+
+    def __init__(self, error: str):
+        self.error = error
+
+    def fetch(self) -> tuple[bytes, str | None]:
+        raise SourceError(self.error)
 
 
 class ReplaySource:

@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from urllib.parse import quote
 
 import requests
 from fastapi import Body, FastAPI, HTTPException, Query
@@ -156,7 +157,10 @@ def snapshot(ip: str, source: str = Query("auto", pattern="^(auto|live|sample)$"
             error = str(e)
     sample = _sample_image(ip)
     if sample is not None and source in ("auto", "sample"):
-        return FileResponse(sample, headers={"X-Parkai-Source": "sample", "Cache-Control": "no-store"})
+        headers = {"X-Parkai-Source": "sample", "Cache-Control": "no-store"}
+        if error:  # 헤더는 latin-1만 가능하므로 URL 인코딩
+            headers["X-Parkai-Error"] = quote(error[:300])
+        return FileResponse(sample, headers=headers)
     raise HTTPException(502, f"스냅샷을 가져오지 못했습니다: {error or '샘플 없음'}")
 
 

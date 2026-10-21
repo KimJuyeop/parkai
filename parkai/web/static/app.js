@@ -260,7 +260,10 @@ const editor = {
       img.onload = () => {
         if (this.cam !== cam) return;
         this.img = img;
-        this.imgSource = src === "sample" ? "샘플 이미지 (카메라 연결 안 됨)" : "카메라 실시간";
+        const err = r.headers.get("X-Parkai-Error");
+        this.imgSource = src === "sample"
+          ? "샘플 이미지 (카메라 연결 실패" + (err ? ": " + decodeURIComponent(err) : "") + ")"
+          : "카메라 실시간";
         this.srcLabel.textContent = `${this.imgSource} · ${img.naturalWidth}×${img.naturalHeight}`;
         this.resize();
       };
@@ -542,7 +545,7 @@ function renderSettings() {
   const profBox = h("div");
   const renderProfiles = () => profBox.replaceChildren(...Object.entries(cfg.camera_profiles).map(([name, p]) => h("div", { class: "form-row" },
     field("이름", h("input", { value: name, size: 14, disabled: true })),
-    field("스냅샷 URL ({ip}, {port})", h("input", { value: p.snapshot_url, size: 46, onchange: bind(p, "snapshot_url") })),
+    field("스냅샷 URL ({ip} 또는 {ipaddress}, {port})", h("input", { value: p.snapshot_url, size: 46, onchange: bind(p, "snapshot_url") })),
     field("인증", h("select", { onchange: bind(p, "auth") }, ...["none", "basic", "digest"].map((a) => h("option", { value: a, selected: p.auth === a }, a)))),
     field("기준 해상도", h("input", { value: p.ref_size.join("x"), size: 9, onchange: (e) => { p.ref_size = e.target.value.split("x").map(Number); markDirty(); } })),
     field("화면 영역 (x,y,w,h; ...)", h("input", { value: p.views.map((v) => v.join(",")).join("; "), size: 30, onchange: (e) => {
