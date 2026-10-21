@@ -34,13 +34,14 @@ def _looks_like_image(data: bytes) -> bool:
 class HttpSnapshotSource:
     def __init__(self, cam: Camera, profile: CameraProfile, timeout: float, retries: int):
         self.url = build_snapshot_url(profile.snapshot_url, cam)
+        user, password = (cam.user, cam.password) if cam.own_account else (profile.user, profile.password)
         self.timeout = timeout
         self.retries = retries
         self.session = requests.Session()
         if profile.auth == "basic":
-            self.session.auth = HTTPBasicAuth(cam.user, cam.password)
+            self.session.auth = HTTPBasicAuth(user, password)
         elif profile.auth == "digest":
-            self.session.auth = HTTPDigestAuth(cam.user, cam.password)
+            self.session.auth = HTTPDigestAuth(user, password)
 
     def fetch(self) -> tuple[bytes, str | None]:
         last: Exception | None = None

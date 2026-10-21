@@ -145,19 +145,13 @@ function renderSidebar() {
 
   const alive = workerAlive(), st = state.status;
   const mine = cfg.cameras.filter((c) => camRole(c) === "mine");
-  let occ = 0, total = 0, okCams = 0;
-  for (const c of mine) {
-    const cs = st.cameras[c.ip] || {};
-    if (cs.status === "ok") okCams++;
-    for (const sl of c.slots) { total++; if ((cs.states || {})[String(sl.no)] === true) occ++; }
-  }
+  const okCams = mine.filter((c) => (st.cameras[c.ip] || {}).status === "ok").length;
   const sum = (label, value, cls = "", wide = false) =>
     h("div", { class: "sum" + (wide ? " wide" : "") }, h("div", { class: "label" }, label), h("div", { class: "value " + cls }, value));
   $("#summary").replaceChildren(
     sum("판정", alive ? "동작 중" : "정지", alive ? "good" : "bad"),
     sum("사이클", alive && st.cycle_sec != null ? st.cycle_sec.toFixed(1) + "초" : "-"),
-    sum("주차 (점유/전체)", alive ? `${occ} / ${total}` : "-"),
-    sum("카메라 정상", alive ? `${okCams} / ${mine.length}` : "-"),
+    sum("카메라 정상", alive ? `${okCams} / ${mine.length}` : "-", "", true),
     ...(cfg.server.enabled ? [sum("서버 전송", st.server_error ? "오류" : "정상", st.server_error ? "bad" : "good", true)] : []),
   );
 
@@ -260,10 +254,7 @@ function renderDashboard() {
       const v = states[String(s.no)];
       return h("span", { class: v == null ? "chip" : v ? "chip occ" : "chip free", title: `${s.no}번 · ${typeName(s.type)}` }, String(s.no));
     }) : [h("span", { class: "muted small" }, "설정된 칸 없음")]));
-    const vals = c.slots.map((s) => states[String(s.no)]);
-    tile.meta.textContent = live
-      ? `차량 ${vals.filter((v) => v === true).length} · 빈칸 ${vals.filter((v) => v === false).length} · ${ago(cs.updated_at)}`
-      : `${c.slots.length}칸`;
+    tile.meta.textContent = live && cs.updated_at ? `갱신 ${ago(cs.updated_at)}` : "";
     tile.err.textContent = live && cs.error ? cs.error : "";
   }
   if (dash.modalIp) refreshModal();
@@ -363,7 +354,7 @@ function renderAddPanel() {
       h("button", { onclick: () => switchTab("settings") }, "시스템 설정으로"));
     return;
   }
-  const f = { start: "", end: "", port: 80, profile: profiles[0], user: "admin", password: "", board: cfg.site.board_name || "" };
+  const f = { start: "", end: "", port: 80, profile: profiles[0], board: cfg.site.board_name || "" };
   const preview = h("span", { class: "muted small" });
   const addBtn = h("button", { class: "primary" }, "추가");
   const update = () => {
@@ -382,7 +373,7 @@ function renderAddPanel() {
     for (const ip of r.ips) {
       if (cfg.cameras.some((c) => c.ip === ip)) continue;
       cfg.cameras.push({
-        ip, port: Number(f.port) || 80, profile: f.profile, user: f.user, password: f.password,
+        ip, port: Number(f.port) || 80, profile: f.profile, own_account: false, user: "", password: "",
         controller_ip: null, board: f.board || null, ref_size: null, enabled: true, slots: [],
       });
       added.push(ip);
@@ -398,14 +389,12 @@ function renderAddPanel() {
   panel.replaceChildren(
     h("div", { class: "editor-head" }, h("h3", { style: "margin:0" }, "카메라 추가"), h("span", { class: "spacer" }),
       h("button", { class: "ghost", onclick: () => panel.classList.add("hidden") }, "닫기")),
-    h("p", { class: "note" }, "한 대만 추가하려면 시작 IP만 입력하세요. 범위는 끝 번호(예: 230) 또는 끝 IP를 입력합니다. 이미 있는 IP는 건너뜁니다."),
+    h("p", { class: "note" }, "한 대만 추가하려면 시작 IP만 입력하세요. 범위는 끝 번호(예: 230) 또는 끝 IP를 입력합니다. 이미 있는 IP는 건너뜁니다. 카메라 계정은 프로필의 공통 계정을 사용합니다 (시스템 설정 → 카메라 프로필)."),
     h("div", { class: "form-row" },
       field("시작 IP", inp("start", { placeholder: "192.168.0.201", size: 15 })),
       field("끝 (번호 또는 IP)", inp("end", { placeholder: "230", size: 15 })),
       field("포트", inp("port", { type: "number", style: "width:80px" })),
       field("프로필", select(profiles.map((p) => [p, p]), f.profile, (v) => { f.profile = v; })),
-      field("사용자", inp("user", { size: 10 })),
-      field("비밀번호", inp("password", { type: "password", size: 10 })),
       field("담당 보드", inp("board", { size: 8, placeholder: "모든 보드" })),
       addBtn),
     preview);
@@ -457,6 +446,9 @@ const editor = {
     }, t.name)));
 
     const [bcls, btxt] = camBadge(cam);
+    const acct = h("span", { class: "form-row" + (cam.own_account ? "" : " hidden"), style: "margin:0" },
+      field("사용자", h("input", { value: cam.user, size: 10, onchange: set("user") })),
+      field("비밀번호", h("input", { type: "password", value: cam.password, size: 10, onchange: set("password") })));
     this.table = h("tbody");
     $("#camEditor").replaceChildren(
       h("div", { class: "editor-head" }, h("h2", {}, cam.ip), h("span", { class: "badge " + bcls }, btxt)),
@@ -464,8 +456,10 @@ const editor = {
         field("카메라 IP", ipInput),
         field("포트", h("input", { type: "number", value: cam.port, style: "width:80px", onchange: set("port", Number) })),
         field("프로필", select(profiles.map((p) => [p, p]), cam.profile, (v) => { cam.profile = v; markDirty(); this.loadSnapshot(); })),
-        field("사용자", h("input", { value: cam.user, size: 10, onchange: set("user") })),
-        field("비밀번호", h("input", { type: "password", value: cam.password, size: 10, onchange: set("password") })),
+        field("개별 계정", h("input", { type: "checkbox", checked: cam.own_account, onchange: (e) => {
+          cam.own_account = e.target.checked; acct.classList.toggle("hidden", !cam.own_account); markDirty();
+        } }), "inline"),
+        acct,
         field("담당 보드", h("input", { value: cam.board || "", size: 8, placeholder: "모든 보드", onchange: set("board", (v) => v || null) })),
         field("컨트롤러 IP", h("input", { value: cam.controller_ip || "", size: 14, placeholder: "없음", onchange: set("controller_ip", (v) => v || null) })),
         field("사용", h("input", { type: "checkbox", checked: cam.enabled, onchange: (e) => { set("enabled")(e); renderSidebar(); } }), "inline"),
@@ -757,10 +751,16 @@ function renderSettings() {
       if (cfg.camera_profiles[n]) { toast("같은 이름의 프로필이 있습니다"); e.target.value = name; return; }
       cfg.camera_profiles = Object.fromEntries(Object.entries(cfg.camera_profiles).map(([k, v]) => [k === name ? n : k, v]));
       for (const c of cfg.cameras) if (c.profile === name) c.profile = n;  // 카메라도 새 이름으로
+      if (cfg.camera_profiles[n].password === "****") {
+        cfg.camera_profiles[n].password = "";
+        toast("이름을 바꿨으니 공통 비밀번호를 다시 입력하세요", 4000);
+      }
       markDirty(); renderProfiles();
     } })),
     field("스냅샷 주소 ({ip}, {port} 자리에 카메라 값이 들어감)", h("input", { value: p.snapshot_url, size: 56, onchange: bind(p, "snapshot_url") })),
     field("인증", select(AUTH, p.auth, (v) => { p.auth = v; markDirty(); })),
+    field("공통 사용자", h("input", { value: p.user || "", size: 10, onchange: bind(p, "user") })),
+    field("공통 비밀번호", h("input", { type: "password", value: p.password || "", size: 10, onchange: bind(p, "password") })),
     field("기준 해상도", h("input", { value: p.ref_size.join("x"), size: 9, onchange: (e) => { p.ref_size = e.target.value.split("x").map(Number); markDirty(); } })),
     field("분석 영역 (x,y,가로,세로; ...)", h("input", { value: p.views.map((v) => v.join(",")).join("; "), size: 28, onchange: (e) => {
       p.views = e.target.value.split(";").map((s) => s.trim()).filter(Boolean).map((s) => s.split(",").map(Number)); markDirty();
@@ -771,12 +771,12 @@ function renderSettings() {
     } }, "삭제"))));
   renderProfiles();
   const newProf = h("input", { placeholder: "새 프로필 이름", size: 14 });
-  const profiles = sec("카메라 프로필", "카메라 기종별 스냅샷 주소, 인증 방식, 차량을 분석할 화면 영역입니다.",
+  const profiles = sec("카메라 프로필", "카메라 기종별 스냅샷 주소, 인증 방식, 공통 계정, 차량을 분석할 화면 영역입니다. 계정이 다른 카메라만 카메라 설정에서 '개별 계정'을 켜세요.",
     profBox,
     h("div", { class: "toolbar" }, newProf, h("button", { onclick: () => {
       const n = newProf.value.trim();
       if (!n || cfg.camera_profiles[n]) return toast("이름을 확인하세요");
-      cfg.camera_profiles[n] = { snapshot_url: "http://{ip}:{port}/snapshot.jpg", auth: "digest", ref_size: [1280, 960], views: [[0, 0, 640, 480], [640, 0, 640, 480]] };
+      cfg.camera_profiles[n] = { snapshot_url: "http://{ip}:{port}/snapshot.jpg", auth: "digest", user: "admin", password: "", ref_size: [1280, 960], views: [[0, 0, 640, 480], [640, 0, 640, 480]] };
       newProf.value = ""; markDirty(); renderProfiles();
     } }, "프로필 추가")));
 

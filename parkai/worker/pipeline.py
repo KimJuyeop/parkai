@@ -58,6 +58,7 @@ class CameraRuntime:
         self.frozen = FrozenDetector()
         self.states: dict[int, bool] = {}
         self.last_saved = 0.0
+        self.sig: tuple | None = None
 
 
 class Worker:
@@ -119,9 +120,11 @@ class Worker:
                 del self.cams[ip]
         for ip, cam in wanted.items():
             rt = self.cams.get(ip)
-            if rt is None or rt.cam.model_dump() != cam.model_dump():
+            sig = (cam.model_dump(), self.cfg.camera_profiles[cam.profile].model_dump())
+            if rt is None or rt.sig != sig:
                 old = rt
                 rt = CameraRuntime(cam, self._make_source(cam), stab.count)
+                rt.sig = sig  # 카메라나 프로필(주소, 계정)이 바뀌면 입력을 새로 만든다
                 if old is not None and old.cam.slots == cam.slots:
                     rt.stabilizer, rt.states = old.stabilizer, old.states
                 self.cams[ip] = rt

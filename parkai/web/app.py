@@ -100,18 +100,23 @@ def status():
 @app.get("/api/v1/config")
 def get_config():
     data = _cfg().model_dump(mode="json")
-    for cam in data["cameras"]:
-        cam["password"] = MASK if cam["password"] else ""
+    for item in [*data["cameras"], *data["camera_profiles"].values()]:
+        item["password"] = MASK if item["password"] else ""
     return data
 
 
 @app.put("/api/v1/config")
 def put_config(data: dict = Body(...)):
     """설정 전체 저장. 비밀번호가 '****'이면 기존 값을 유지한다."""
-    old = {c.ip: c.password for c in _cfg().cameras}
+    cur = _cfg()
+    old_cam = {c.ip: c.password for c in cur.cameras}
+    old_prof = {k: p.password for k, p in cur.camera_profiles.items()}
     for cam in data.get("cameras", []):
         if cam.get("password") == MASK:
-            cam["password"] = old.get(cam.get("ip"), "")
+            cam["password"] = old_cam.get(cam.get("ip"), "")
+    for name, prof in (data.get("camera_profiles") or {}).items():
+        if prof.get("password") == MASK:
+            prof["password"] = old_prof.get(name, "")
     try:
         cfg = AppConfig.model_validate(data)
     except ValidationError as e:
@@ -124,8 +129,8 @@ def put_config(data: dict = Body(...)):
 def export_config(passwords: bool = False):
     data = _cfg().model_dump(mode="json")
     if not passwords:
-        for cam in data["cameras"]:
-            cam["password"] = ""
+        for item in [*data["cameras"], *data["camera_profiles"].values()]:
+            item["password"] = ""
     return Response(
         json.dumps(data, ensure_ascii=False, indent=2),
         media_type="application/json",

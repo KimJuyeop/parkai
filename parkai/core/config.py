@@ -113,6 +113,8 @@ DEFAULT_SLOT_TYPES = [SlotType(id=i, name=n) for i, n in FIXED_SLOT_TYPES]
 class CameraProfile(BaseModel):
     snapshot_url: str  # {ip}, {port} 치환
     auth: Literal["none", "basic", "digest"] = "digest"
+    user: str = ""  # 이 프로필을 쓰는 카메라 공통 계정
+    password: str = ""
     ref_size: tuple[int, int] = (1280, 960)
     # 추론할 화면 영역 [x, y, w, h] (ref_size 기준)
     views: list[tuple[int, int, int, int]] = [(0, 0, 640, 480), (640, 0, 640, 480)]
@@ -134,6 +136,7 @@ class Camera(BaseModel):
     ip: str
     port: int = 80
     profile: str
+    own_account: bool = False  # True면 아래 계정 사용, False면 프로필 공통 계정
     user: str = ""
     password: str = ""
     controller_ip: str | None = None  # 용도 확인 필요 (만공등 제어 대상일 가능성)
@@ -193,6 +196,16 @@ class AppConfig(BaseModel):
     server: ServerCfg = ServerCfg()
     indicator: IndicatorCfg = IndicatorCfg()
 
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate(cls, data):
+        """예전 설정 파일: 카메라마다 비밀번호가 있었으면 개별 계정으로 유지."""
+        if isinstance(data, dict):
+            for cam in data.get("cameras") or []:
+                if isinstance(cam, dict) and "own_account" not in cam and cam.get("password"):
+                    cam["own_account"] = True
+        return data
+
     @model_validator(mode="after")
     def _check_refs(self) -> AppConfig:
         type_ids = {t.id for t in self.slot_types}
@@ -207,6 +220,12 @@ class AppConfig(BaseModel):
                 if s.type not in type_ids:
                     raise ValueError(f"카메라 {cam.ip} {s.no}번 칸: 없는 주차 종류 '{s.type}'")
         return self
+
+    def camera_account(self, cam: Camera) -> tuple[str, str]:
+        if cam.own_account:
+            return cam.user, cam.password
+        p = self.camera_profiles[cam.profile]
+        return p.user, p.password
 
     def camera_ref_size(self, cam: Camera) -> tuple[int, int]:
         return cam.ref_size or self.camera_profiles[cam.profile].ref_size

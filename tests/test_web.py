@@ -63,3 +63,35 @@ def test_snapshot_url_accepts_ipaddress():
     url = "http://{ipaddress}/cgi-bin/webSetup.cgi?action=videoStreamSnapshot&mode=1"
     assert build_snapshot_url(url, cam).startswith("http://192.168.0.5/cgi-bin")
     assert build_snapshot_url("http://{ip}:{port}/x", cam) == "http://192.168.0.5:8080/x"
+
+
+def test_profile_account_masked_and_used(tmp_path, monkeypatch):
+    client, cfg = make_client(tmp_path, monkeypatch)
+    got = client.get("/api/v1/config").json()
+    got["camera_profiles"]["2분할 카메라"]["password"] = "common-pw"
+    got["cameras"][0]["own_account"] = False  # 공통 계정 사용
+    assert client.put("/api/v1/config", json=got).status_code == 200
+    got = client.get("/api/v1/config").json()
+    assert got["camera_profiles"]["2분할 카메라"]["password"] == "****"
+    assert client.put("/api/v1/config", json=got).status_code == 200  # 마스킹 그대로 다시 저장
+
+    from parkai.core.config import load_config
+
+    c = load_config(cfg)
+    cam = c.cameras[0]
+    assert c.camera_profiles[cam.profile].password == "common-pw"
+    assert c.camera_account(cam) == ("admin", "common-pw")  # 개별 계정이 아니면 프로필 계정
+    cam.own_account = True
+    assert c.camera_account(cam) == (cam.user, "secret")
+
+
+def test_old_config_with_camera_password_keeps_own_account():
+    from parkai.core.config import AppConfig
+
+    c = AppConfig.model_validate(
+        {
+            "camera_profiles": {"p": {"snapshot_url": "x"}},
+            "cameras": [{"ip": "1.1.1.1", "profile": "p", "user": "u", "password": "pw"}],
+        }
+    )
+    assert c.cameras[0].own_account and c.camera_account(c.cameras[0]) == ("u", "pw")
