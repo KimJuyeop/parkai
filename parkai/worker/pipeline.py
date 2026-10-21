@@ -200,9 +200,16 @@ class Worker:
 
     def _process(self, rt: CameraRuntime, p: Prepared) -> dict:
         cam = rt.cam
-        info: dict = {"status": p.status, "timings": p.timings, "error": p.error}
+        info: dict = {
+            "status": p.status,
+            "timings": p.timings,
+            "error": p.error,
+            "updated_at": datetime.now().isoformat(timespec="seconds"),
+        }
         if p.status not in ("ok", "partial"):
             info["states"] = {str(k): v for k, v in rt.states.items()}
+            if p.image is not None:  # 화면 이상이어도 무엇이 보이는지는 대시보드에 표시
+                self._save_images(rt, p, [], changed=False)
             return info
 
         t = time.perf_counter()
@@ -244,6 +251,19 @@ class Worker:
         info["boxes"] = len(boxes)
         return info
 
+    def _crop_to_views(self, img: np.ndarray, cam: Camera) -> np.ndarray:
+        views = self.cfg.camera_profiles[cam.profile].views
+        if not views:
+            return img
+        ref_w, ref_h = self.cfg.camera_ref_size(cam)
+        h, w = img.shape[:2]
+        sx, sy = w / ref_w, h / ref_h
+        x0 = min(v[0] for v in views)
+        y0 = min(v[1] for v in views)
+        x1 = max(v[0] + v[2] for v in views)
+        y1 = max(v[1] + v[3] for v in views)
+        return img[round(y0 * sy) : round(y1 * sy), round(x0 * sx) : round(x1 * sx)]
+
     def _save_images(self, rt: CameraRuntime, p: Prepared, boxes: list[Box], changed: bool) -> None:
         cam = rt.cam
         img = annotate(
@@ -252,15 +272,21 @@ class Worker:
             cam.slots,
             {s.no: rt.states.get(s.no) for s in cam.slots},
             boxes,
-            cam.ip,
+            "",
         )
+        img = self._crop_to_views(img, cam)  # 영상이 없는 영역(아래 검은 부분 등) 제외
         ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 75])
         if not ok:
             return
         latest = self.run_dir / "latest" / f"{cam.ip}.jpg"
         tmp = latest.with_suffix(".tmp")
         tmp.write_bytes(buf.tobytes())
-        os.replace(tmp, latest)  # RAM 디스크, 매 사이클
+        for _ in range(3):  # Windows: 웹이 읽는 중이면 교체가 잠시 실패할 수 있음
+            try:
+                os.replace(tmp, latest)  # RAM 디스크, 매 사이클
+                break
+            except PermissionError:
+                time.sleep(0.05)
 
         now = time.time()
         if changed or now - rt.last_saved >= self.cfg.runtime.results.save_interval_sec:

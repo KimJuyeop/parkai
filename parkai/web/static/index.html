@@ -24,6 +24,15 @@
     <!-- 대시보드 -->
     <section id="tab-dashboard" class="tab active">
       <div class="metrics" id="metrics"></div>
+      <div class="notice hidden" id="dashNotice">
+        워커가 실행 중이 아니어서 판정 결과 대신 카메라 스냅샷을 보여줍니다.
+        PC에서는 <code>python tools/dev.py</code>로 웹과 워커를 함께 실행하세요.
+      </div>
+      <div class="legend">
+        <span><i style="background:#16a34a"></i>차량 있음</span>
+        <span><i style="background:#dc2626"></i>빈칸</span>
+        <span><i style="background:#9ca3af"></i>판정 없음</span>
+      </div>
       <div class="grid" id="camCards"></div>
     </section>
 
@@ -56,6 +65,22 @@
     <button id="saveBtn" class="primary">저장</button>
   </div>
   <div class="toast hidden" id="toast"></div>
+
+  <div class="modal hidden" id="modal" onclick="if (event.target === this) closeModal()">
+    <div class="modal-box">
+      <div class="modal-head">
+        <strong id="modalTitle"></strong>
+        <span id="modalStatus" class="badge"></span>
+        <span class="spacer"></span>
+        <button onclick="closeModal()">닫기 (Esc)</button>
+      </div>
+      <img id="modalImg" class="modal-img" alt="">
+      <div class="modal-foot">
+        <div id="modalInfo" class="muted small"></div>
+        <table><tbody id="modalSlots"></tbody></table>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

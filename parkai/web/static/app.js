@@ -100,40 +100,161 @@ function renderHeader() {
 
 function renderAll() {
   renderHeader();
-  if (state.tab === "dashboard") renderDashboard();
+  if (state.tab === "dashboard") { dash.key = ""; renderDashboard(); }
   if (state.tab === "camera") renderCameraTab();
   if (state.tab === "settings") renderSettings();
 }
 
 // ---------- 대시보드 ----------
-function renderDashboard() {
+// 카드는 카메라 목록이 바뀔 때만 다시 만들고, 이미지/상태는 제자리에서 갱신한다 (깜빡임 방지).
+const dash = { key: "", tiles: new Map(), modalIp: null };
+
+function workerAlive() {
   const st = state.status;
-  const cams = state.cfg.cameras;
-  const bad = cams.filter((c) => st.cameras[c.ip] && st.cameras[c.ip].status !== "ok").length;
-  const metric = (label, value) => h("div", { class: "metric" }, h("div", { class: "label" }, label), h("div", { class: "value" }, value));
-  $("#metrics").replaceChildren(
-    metric("워커", st.running ? "동작 중" : "정지"),
-    metric("사이클 시간", st.cycle_sec != null ? st.cycle_sec.toFixed(2) + "초" : "-"),
-    metric("카메라", cams.length + "대"),
-    metric("이상 카메라", bad + "대"),
-    metric("서버 전송", !state.cfg.server.enabled ? "사용 안 함" : (st.server_error ? "오류" : "정상")),
-  );
-  const t = Date.now();
-  $("#camCards").replaceChildren(...cams.map((c) => {
-    const cs = st.cameras[c.ip] || {};
-    const states = Object.values(cs.states || {});
-    const occ = states.filter((v) => v === true).length;
-    const empty = states.filter((v) => v === false).length;
-    const img = h("img", { src: st.running ? `/api/v1/cameras/${c.ip}/latest?t=${t}` : `/api/v1/cameras/${c.ip}/snapshot?t=${t}`, alt: c.ip });
-    img.onerror = () => { img.removeAttribute("src"); };
-    return h("div", { class: "card", onclick: () => { state.selectedIp = c.ip; switchTab("camera"); } },
-      img,
-      h("div", { class: "info" },
-        h("strong", {}, c.ip),
-        h("span", { class: "muted" }, `칸 ${c.slots.length} · 점유 ${occ} · 빈칸 ${empty}`),
-        h("span", { class: "badge " + statusClass(cs.status) }, STATUS_TEXT[cs.status] || (st.running ? "대기" : "워커 정지"))));
-  }));
+  if (!st.running || !st.updated_at) return false;
+  const age = (Date.now() - new Date(st.updated_at).getTime()) / 1000;
+  return age < Math.max(30, state.cfg.runtime.cycle_target_sec * 3);
 }
+
+function ago(iso) {
+  if (!iso) return "";
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  return s < 60 ? `${s}초 전` : s < 3600 ? `${Math.floor(s / 60)}분 전` : `${Math.floor(s / 3600)}시간 전`;
+}
+
+// 이미지를 미리 받아 둔 뒤 교체 (로딩 중 검은 화면이 보이지 않게)
+function swapImage(img, url, onFail) {
+  const pre = new Image();
+  pre.onload = () => { img.src = pre.src; img.classList.remove("empty"); };
+  pre.onerror = () => onFail && onFail();
+  pre.src = url;
+}
+
+function renderDashboard() {
+  const cams = state.cfg.cameras;
+  const alive = workerAlive();
+  const st = state.status;
+
+  // 요약
+  let occ = 0, total = 0, okCams = 0;
+  for (const c of cams) {
+    const cs = st.cameras[c.ip] || {};
+    if (cs.status === "ok") okCams++;
+    for (const s of c.slots) { total++; if ((cs.states || {})[String(s.no)] === true) occ++; }
+  }
+  const metric = (label, value, sub, cls = "") => h("div", { class: "metric " + cls },
+    h("div", { class: "label" }, label), h("div", { class: "value" }, value), sub ? h("div", { class: "sub" }, sub) : null);
+  $("#metrics").replaceChildren(
+    metric("워커", alive ? "동작 중" : "정지", alive ? `갱신 ${ago(st.updated_at)}` : "판정 결과 없음", alive ? "good" : "badm"),
+    metric("주차 현황", alive ? `${occ} / ${total}` : "-", alive ? `빈칸 ${total - occ}면` : ""),
+    metric("카메라", `${alive ? okCams : "-"} / ${cams.length}`, "정상 / 전체"),
+    metric("사이클", alive && st.cycle_sec != null ? st.cycle_sec.toFixed(2) + "초" : "-", `목표 ${state.cfg.runtime.cycle_target_sec}초`),
+    metric("서버 전송", !state.cfg.server.enabled ? "사용 안 함" : (st.server_error ? "오류" : "정상"),
+      st.server_error ? st.server_error.slice(0, 60) : "", state.cfg.server.enabled && st.server_error ? "badm" : ""),
+  );
+  $("#dashNotice").classList.toggle("hidden", alive);
+
+  if (!cams.length) {
+    dash.key = "";
+    $("#camCards").replaceChildren(h("div", { class: "empty-state" },
+      h("p", {}, "등록된 카메라가 없습니다."),
+      h("button", { class: "primary", onclick: () => switchTab("camera") }, "카메라 추가하기")));
+    return;
+  }
+
+  // 카메라 목록이 바뀌었으면 카드 다시 만들기
+  const key = cams.map((c) => c.ip + ":" + c.profile).join("|");
+  if (key !== dash.key) {
+    dash.key = key;
+    dash.tiles.clear();
+    $("#camCards").replaceChildren(...cams.map((c) => {
+      const [, , bw, bh] = viewsBBox(c);
+      const img = h("img", { class: "empty", alt: c.ip, style: `aspect-ratio:${bw}/${bh}` });
+      const badge = h("span", { class: "badge" });
+      const chips = h("div", { class: "chips" });
+      const meta = h("div", { class: "meta" });
+      const err = h("div", { class: "err" });
+      const tile = h("div", { class: "card" },
+        h("div", { class: "card-img", onclick: () => openModal(c.ip) },
+          img, h("div", { class: "overlay" }, h("strong", {}, c.ip), badge)),
+        h("div", { class: "card-body" },
+          chips, err,
+          h("div", { class: "card-foot" }, meta,
+            h("span", {},
+              h("button", { class: "ghost", onclick: () => openModal(c.ip) }, "크게 보기"),
+              h("button", { class: "ghost", onclick: () => { state.selectedIp = c.ip; switchTab("camera"); } }, "설정")))));
+      dash.tiles.set(c.ip, { img, badge, chips, meta, err, shownSnapshot: false });
+      return tile;
+    }));
+  }
+
+  // 내용 갱신
+  const t = Date.now();
+  for (const c of cams) {
+    const tile = dash.tiles.get(c.ip);
+    if (!tile) continue;
+    const cs = st.cameras[c.ip] || {};
+    const states = cs.states || {};
+    if (alive) {
+      tile.badge.className = "badge " + statusClass(cs.status);
+      tile.badge.textContent = c.enabled ? (STATUS_TEXT[cs.status] || "대기") : "사용 안 함";
+      swapImage(tile.img, `/api/v1/cameras/${c.ip}/latest?t=${t}`);
+    } else {
+      tile.badge.className = "badge";
+      tile.badge.textContent = "스냅샷";
+      if (!tile.shownSnapshot) {  // 워커 정지 중에는 한 번만 카메라 스냅샷 표시
+        tile.shownSnapshot = true;
+        swapImage(tile.img, `/api/v1/cameras/${c.ip}/snapshot?t=${t}`);
+      }
+    }
+    tile.chips.replaceChildren(...(c.slots.length ? c.slots.map((s) => {
+      const v = states[String(s.no)];
+      const cls = !alive || v == null ? "chip" : v ? "chip occ" : "chip free";
+      const typeName = (state.cfg.slot_types.find((x) => x.id === s.type) || {}).name || s.type;
+      return h("span", { class: cls, title: `${s.no}번 · ${typeName}` }, String(s.no));
+    }) : [h("span", { class: "muted small" }, "설정된 칸 없음")]));
+    const vals = c.slots.map((s) => states[String(s.no)]);
+    tile.meta.textContent = alive
+      ? `점유 ${vals.filter((v) => v === true).length} · 빈칸 ${vals.filter((v) => v === false).length} · ${ago(cs.updated_at)}`
+      : `칸 ${c.slots.length}개`;
+    tile.err.textContent = alive && cs.error ? cs.error : "";
+  }
+  if (dash.modalIp) refreshModal();
+}
+
+// 크게 보기
+function openModal(ip) {
+  dash.modalIp = ip;
+  $("#modal").classList.remove("hidden");
+  refreshModal();
+}
+function closeModal() { dash.modalIp = null; $("#modal").classList.add("hidden"); }
+function refreshModal() {
+  const ip = dash.modalIp;
+  const c = state.cfg.cameras.find((x) => x.ip === ip);
+  if (!c) return closeModal();
+  const cs = state.status.cameras[ip] || {};
+  const alive = workerAlive();
+  $("#modalTitle").textContent = ip;
+  $("#modalStatus").className = "badge " + (alive ? statusClass(cs.status) : "");
+  $("#modalStatus").textContent = alive ? (STATUS_TEXT[cs.status] || "대기") : "스냅샷";
+  const img = $("#modalImg");
+  swapImage(img, alive ? `/api/v1/cameras/${ip}/latest?t=${Date.now()}` : `/api/v1/cameras/${ip}/snapshot?t=${Date.now()}`);
+  const states = cs.states || {};
+  $("#modalSlots").replaceChildren(...c.slots.map((s) => {
+    const v = states[String(s.no)];
+    const typeName = (state.cfg.slot_types.find((x) => x.id === s.type) || {}).name || s.type;
+    return h("tr", {}, h("td", {}, `${s.no}번`), h("td", {}, typeName),
+      h("td", {}, !alive || v == null ? h("span", { class: "muted" }, "-")
+        : v ? h("span", { class: "badge car" }, "차량 있음") : h("span", { class: "badge nocar" }, "빈칸")));
+  }));
+  const tm = cs.timings || {};
+  $("#modalInfo").textContent = alive
+    ? `갱신 ${ago(cs.updated_at)} · 수신 ${fmtMs(tm.fetch)} · 디코딩 ${fmtMs(tm.decode)} · 추론 ${fmtMs(tm.infer)} · 검출 ${cs.boxes ?? "-"}대` + (cs.error ? ` · ${cs.error}` : "")
+    : "워커가 정지 상태라 판정 결과가 없습니다.";
+}
+function fmtMs(s) { return s == null ? "-" : Math.round(s * 1000) + "ms"; }
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && dash.modalIp) closeModal(); });
 
 // ---------- 카메라 설정 ----------
 $("#addCamBtn").addEventListener("click", () => {
@@ -446,7 +567,7 @@ const editor = {
       return h("tr", { class: this.selected === s ? "selected" : "", onclick: (e) => { if (e.target.tagName === "TD") { this.selected = s; this.renderTable(); this.draw(); } } },
         h("td", {}, no), h("td", {}, type),
         h("td", {}, `${s.line[0][0]}, ${s.line[0][1]}`), h("td", {}, `${s.line[1][0]}, ${s.line[1][1]}`),
-        h("td", {}, v === true ? h("span", { class: "badge bad" }, "차량 있음") : v === false ? h("span", { class: "badge ok" }, "빈칸") : h("span", { class: "muted" }, "-")),
+        h("td", {}, v === true ? h("span", { class: "badge car" }, "차량 있음") : v === false ? h("span", { class: "badge nocar" }, "빈칸") : h("span", { class: "muted" }, "-")),
         h("td", {}, h("button", { class: "danger", onclick: () => this.removeSlot(s) }, "삭제")));
     }));
   },
@@ -593,8 +714,7 @@ window.addEventListener("beforeunload", (e) => { if (state.dirty) { e.preventDef
 async function pollStatus() {
   try {
     state.status = await api.get("/api/v1/status");
-    // 워커가 돌 때만 갱신 (정지 중에는 카메라 스냅샷을 반복 요청하지 않도록)
-    if (state.tab === "dashboard" && !state.dirty && state.status.running) renderDashboard();
+    if (state.tab === "dashboard") renderDashboard();
     if (state.tab === "camera" && editor.cam) { editor.renderTable(); if (editor.showState) editor.draw(); }
   } catch { /* 다음 주기에 다시 */ }
 }

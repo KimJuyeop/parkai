@@ -36,6 +36,7 @@ def annotate(
         color = GRAY if st is None else (GREEN if st else RED)
         cv2.line(out, pt(s.line[0]), pt(s.line[1]), color, 6)
         cv2.putText(out, str(s.no), pt(s.line[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
-    cv2.putText(out, title, (12, 36), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 0), 5)
-    cv2.putText(out, title, (12, 36), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (255, 255, 255), 2)
+    if title:
+        cv2.putText(out, title, (12, 36), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 0), 5)
+        cv2.putText(out, title, (12, 36), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (255, 255, 255), 2)
     return out
