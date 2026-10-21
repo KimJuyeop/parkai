@@ -16,7 +16,7 @@
     "nms_iou": 0.45
   },
   "camera_profiles": {
-    "dual_top_half": {
+    "2분할 카메라": {
       "snapshot_url": "http://{ip}:{port}/snapshot.jpg",
       "auth": "digest",
       "ref_size": [1280, 960],
@@ -27,7 +27,7 @@
     {
       "ip": "192.168.13.21",
       "port": 80,
-      "profile": "dual_top_half",
+      "profile": "2분할 카메라",
       "user": "admin",
       "password": "",
       "board": "B1-A",

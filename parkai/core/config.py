@@ -86,20 +86,28 @@ class DetectionCfg(BaseModel):
         return PRESETS[self.preset]
 
 
+FULL_COLOR = "red"  # 모두 차면 만공등은 항상 빨간색
+
+# 만공등 색 선택지 (값: 표시 이름). 실제 지원 색은 카메라 사양 확인 후 조정
+INDICATOR_COLORS = {
+    "green": "녹색",
+    "blue": "파란색",
+    "yellow": "노란색",
+    "white": "흰색",
+    "purple": "보라색",
+    "cyan": "하늘색",
+}
+
+
 class SlotType(BaseModel):
     id: str
     name: str
-    color_available: str  # 빈칸이 있을 때 만공등 색
-    color_full: str = "red"
+    color_available: str = "green"  # 이 종류의 빈칸이 있을 때 만공등 색
 
 
-DEFAULT_SLOT_TYPES = [
-    # 색상은 테스트 카메라 사양 확인 후 확정
-    SlotType(id="normal", name="일반", color_available="green"),
-    SlotType(id="ev", name="전기차", color_available="green"),
-    SlotType(id="disabled", name="장애인", color_available="green"),
-    SlotType(id="compact", name="경차", color_available="green"),
-]
+# 주차 종류는 고정 (순서도 이대로 표시). 바꿀 수 있는 것은 색뿐이다.
+FIXED_SLOT_TYPES = [("normal", "일반"), ("compact", "경차"), ("disabled", "장애인"), ("ev", "전기차")]
+DEFAULT_SLOT_TYPES = [SlotType(id=i, name=n) for i, n in FIXED_SLOT_TYPES]
 
 
 class CameraProfile(BaseModel):
@@ -168,6 +176,18 @@ class AppConfig(BaseModel):
     runtime: RuntimeCfg = RuntimeCfg()
     detection: DetectionCfg = DetectionCfg()
     slot_types: list[SlotType] = DEFAULT_SLOT_TYPES
+
+    @field_validator("slot_types", mode="before")
+    @classmethod
+    def _fixed_slot_types(cls, v) -> list[SlotType]:
+        """종류와 이름은 고정, 입력에서는 색만 가져온다 (예전 설정 파일도 자동 정리)."""
+        colors = {}
+        for t in v or []:
+            d = t.model_dump() if isinstance(t, SlotType) else dict(t)
+            if d.get("color_available") in INDICATOR_COLORS:
+                colors[d.get("id")] = d["color_available"]
+        return [SlotType(id=i, name=n, color_available=colors.get(i, "green")) for i, n in FIXED_SLOT_TYPES]
+
     camera_profiles: dict[str, CameraProfile] = {}
     cameras: list[Camera] = []
     server: ServerCfg = ServerCfg()

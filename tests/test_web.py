@@ -48,7 +48,7 @@ def test_status_when_worker_not_running(tmp_path, monkeypatch):
 def test_snapshot_bad_url_template_is_clear_error(tmp_path, monkeypatch):
     client, cfg = make_client(tmp_path, monkeypatch)
     data = json.loads(cfg.read_text(encoding="utf-8"))
-    data["camera_profiles"]["dual_top_half"]["snapshot_url"] = "http://{camip}/snap.jpg"
+    data["camera_profiles"]["2분할 카메라"]["snapshot_url"] = "http://{camip}/snap.jpg"
     cfg.write_text(json.dumps(data), encoding="utf-8")
     r = client.get("/api/v1/cameras/192.168.13.21/snapshot")
     assert r.status_code == 502  # 500이 아니라 원인 메시지

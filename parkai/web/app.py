@@ -13,6 +13,8 @@ import os
 from pathlib import Path
 from urllib.parse import quote
 
+import cv2
+import numpy as np
 import requests
 from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -142,26 +144,55 @@ def _sample_image(ip: str) -> Path | None:
     return files[-1] if files else None
 
 
+def _crop_views(data: bytes, cfg: AppConfig, cam) -> bytes:
+    """분석 영역(views)만 남기고 잘라낸다 (모니터링 화면용)."""
+    img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+    profile = cfg.camera_profiles[cam.profile]
+    if img is None or not profile.views:
+        return data
+    ref_w, ref_h = cfg.camera_ref_size(cam)
+    h, w = img.shape[:2]
+    sx, sy = w / ref_w, h / ref_h
+    x0 = min(v[0] for v in profile.views)
+    y0 = min(v[1] for v in profile.views)
+    x1 = max(v[0] + v[2] for v in profile.views)
+    y1 = max(v[1] + v[3] for v in profile.views)
+    crop = img[round(y0 * sy) : round(y1 * sy), round(x0 * sx) : round(x1 * sx)]
+    ok, buf = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    return buf.tobytes() if ok else data
+
+
 @app.get("/api/v1/cameras/{ip}/snapshot")
-def snapshot(ip: str, source: str = Query("auto", pattern="^(auto|live|sample)$")):
-    """설정 화면용 스냅샷. auto: 카메라 실패 시 샘플 이미지."""
+def snapshot(
+    ip: str,
+    source: str = Query("auto", pattern="^(auto|live|sample)$"),
+    crop: bool = False,
+):
+    """스냅샷. auto: 카메라 실패 시 샘플 이미지. crop: 분석 영역만."""
     cfg = _cfg()
     cam = _camera(cfg, ip)
     error = None
+    data = None
+    headers = {"Cache-Control": "no-store"}
     if source in ("auto", "live"):
         profile = cfg.camera_profiles[cam.profile]
         try:
             data, _ = HttpSnapshotSource(cam, profile, cfg.runtime.fetch_timeout_sec, 0).fetch()
-            return Response(data, media_type="image/jpeg", headers={"X-Parkai-Source": "live"})
+            headers["X-Parkai-Source"] = "live"
         except SourceError as e:
             error = str(e)
-    sample = _sample_image(ip)
-    if sample is not None and source in ("auto", "sample"):
-        headers = {"X-Parkai-Source": "sample", "Cache-Control": "no-store"}
-        if error:  # 헤더는 latin-1만 가능하므로 URL 인코딩
-            headers["X-Parkai-Error"] = quote(error[:300])
-        return FileResponse(sample, headers=headers)
-    raise HTTPException(502, f"스냅샷을 가져오지 못했습니다: {error or '샘플 없음'}")
+    if data is None and source in ("auto", "sample"):
+        sample = _sample_image(ip)
+        if sample is not None:
+            data = sample.read_bytes()
+            headers["X-Parkai-Source"] = "sample"
+            if error:  # 헤더는 latin-1만 가능하므로 URL 인코딩
+                headers["X-Parkai-Error"] = quote(error[:300])
+    if data is None:
+        raise HTTPException(502, f"스냅샷을 가져오지 못했습니다: {error or '샘플 없음'}")
+    if crop:
+        data = _crop_views(data, cfg, cam)
+    return Response(data, media_type="image/jpeg", headers=headers)
 
 
 @app.get("/api/v1/cameras/{ip}/latest")

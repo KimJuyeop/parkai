@@ -3,60 +3,62 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>parkai 설정</title>
+  <title>parkai 주차유도 AI</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <strong>parkai</strong>
-      <span id="siteLabel" class="muted"></span>
-    </div>
-    <nav class="tabs">
-      <button data-tab="dashboard" class="active">대시보드</button>
-      <button data-tab="camera">카메라 설정</button>
-      <button data-tab="settings">시스템 설정</button>
-    </nav>
-    <div id="sysLabel" class="muted small"></div>
-  </header>
-
-  <main>
-    <!-- 대시보드 -->
-    <section id="tab-dashboard" class="tab active">
-      <div class="metrics" id="metrics"></div>
-      <div class="notice hidden" id="dashNotice">
-        워커가 실행 중이 아니어서 판정 결과 대신 카메라 스냅샷을 보여줍니다.
-        PC에서는 <code>python tools/dev.py</code>로 웹과 워커를 함께 실행하세요.
+  <div class="app">
+    <!-- 좌측 패널: 메뉴, 요약, 카메라 목록 -->
+    <aside class="sidebar">
+      <div class="brand">
+        <strong>parkai</strong>
+        <div id="siteLabel" class="muted small"></div>
       </div>
-      <div class="legend">
-        <span><i style="background:#16a34a"></i>차량 있음</span>
-        <span><i style="background:#dc2626"></i>빈칸</span>
-        <span><i style="background:#9ca3af"></i>판정 없음</span>
-      </div>
-      <div class="grid" id="camCards"></div>
-    </section>
 
-    <!-- 카메라 설정 -->
-    <section id="tab-camera" class="tab">
-      <div class="cam-layout">
-        <aside class="cam-list">
-          <div class="add-cam">
-            <input id="newCamIp" placeholder="192.168.0.10">
-            <button id="addCamBtn">추가</button>
-          </div>
-          <ul id="camList"></ul>
-        </aside>
-        <div class="cam-editor" id="camEditor">
-          <p class="muted">왼쪽에서 카메라를 선택하거나 IP를 입력해 추가하세요.</p>
+      <nav class="menu">
+        <button data-tab="dashboard" class="active">모니터링</button>
+        <button data-tab="camera">카메라 설정</button>
+        <button data-tab="settings">시스템 설정</button>
+      </nav>
+
+      <div class="summary" id="summary"></div>
+
+      <div class="cam-head">
+        <span>카메라 <span id="camCount" class="muted"></span></span>
+        <button class="ghost small" id="openAddCam">+ 추가</button>
+      </div>
+      <ul class="cam-list" id="camList"></ul>
+
+      <div class="side-foot muted small" id="sysLabel"></div>
+    </aside>
+
+    <main>
+      <section id="tab-dashboard" class="tab active">
+        <div class="notice hidden" id="dashNotice">
+          워커가 실행 중이 아니어서 판정 결과 대신 카메라 스냅샷을 보여줍니다.
+          PC에서는 <code>python tools/dev.py</code>로 웹과 워커를 함께 실행하세요.
         </div>
-      </div>
-    </section>
+        <div class="page-head">
+          <h2>모니터링</h2>
+          <div class="legend">
+            <span><i style="background:#16a34a"></i>차량 있음</span>
+            <span><i style="background:#dc2626"></i>빈칸</span>
+            <span><i style="background:#9ca3af"></i>판정 없음</span>
+          </div>
+        </div>
+        <div class="grid" id="camCards"></div>
+      </section>
 
-    <!-- 시스템 설정 -->
-    <section id="tab-settings" class="tab">
-      <div id="settingsForm"></div>
-    </section>
-  </main>
+      <section id="tab-camera" class="tab">
+        <div id="addCamPanel" class="panel hidden"></div>
+        <div class="panel" id="camEditor"></div>
+      </section>
+
+      <section id="tab-settings" class="tab">
+        <div id="settingsForm"></div>
+      </section>
+    </main>
+  </div>
 
   <div class="savebar hidden" id="saveBar">
     <span>저장하지 않은 변경 사항이 있습니다</span>
@@ -72,12 +74,13 @@
         <strong id="modalTitle"></strong>
         <span id="modalStatus" class="badge"></span>
         <span class="spacer"></span>
+        <button id="modalEdit">설정</button>
         <button onclick="closeModal()">닫기 (Esc)</button>
       </div>
-      <img id="modalImg" class="modal-img" alt="">
+      <div class="modal-img-wrap"><img id="modalImg" class="modal-img" alt=""></div>
       <div class="modal-foot">
         <div id="modalInfo" class="muted small"></div>
-        <table><tbody id="modalSlots"></tbody></table>
+        <div id="modalSlots" class="chips big"></div>
       </div>
     </div>
   </div>
