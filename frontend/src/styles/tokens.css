@@ -1,0 +1,99 @@
+/*
+ * 디자인 토큰: 색·글꼴·간격·모서리. 모든 화면은 이 값만 쓴다.
+ * 테마는 <html data-theme="light|dark"> 로 바뀐다.
+ */
+:root {
+  /* 글꼴: 현장은 인터넷이 없을 수 있어 웹 글꼴을 받지 않고 시스템 글꼴을 쓴다 */
+  --font-sans: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --font-mono: Consolas, "SF Mono", "Cascadia Mono", ui-monospace, monospace;
+
+  /* 글꼴 크기 */
+  --fs-title: 18px;   /* 화면 제목, 상태 줄 값 */
+  --fs-section: 15px; /* 패널·섹션 제목 */
+  --fs-body: 14px;    /* 본문, 메뉴 */
+  --fs-control: 13px; /* 버튼, 보조 글 */
+  --fs-meta: 12px;    /* 라벨, 메타 정보 */
+  --fs-tiny: 11px;    /* 영상 위 칸 번호 */
+
+  /* 간격 */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+
+  /* 크기·모서리 */
+  --control-h: 36px;
+  --header-h: 56px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+
+  /* 주차 종류 선 색 (영상 위, 두 테마 공통) */
+  --type-normal: #3fbf6f;
+  --type-compact: #a87cff;
+  --type-disabled: #3b7bff;
+  --type-ev: #8ecdf7;
+  --draft-line: #facc15;
+
+  --dur: 160ms;
+}
+
+:root,
+[data-theme="light"] {
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --surface-2: #f6f7f9;
+  --line: #dfe3e9;
+  --text: #111723;
+  --muted: #586272;
+  --accent: #1d5fd1;
+  --accent-hover: #164aa3;
+  --on-accent: #ffffff;
+  --accent-soft: #e6eefc;
+  --free: #08704a;      /* 빈칸 */
+  --free-soft: #e3f5ec;
+  --occ: #b84f00;       /* 차량 있음 */
+  --on-occ: #ffffff;
+  --unj: #8a94a3;       /* 판정 없음 */
+  --bad: #c62828;
+  --bad-soft: #fdeaea;
+  --warn: #8a6100;
+  --media: #151a21;     /* 영상 바탕 */
+  --media-line: rgba(255, 255, 255, 0.14);
+  --media-text: #8d97a6;
+  --bar: #111723;       /* 저장 바 */
+  --on-bar: #f2f4f7;
+  --scrim: rgba(0, 0, 0, 0.55);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #0d1117;
+  --surface: #151b23;
+  --surface-2: #1c2330;
+  --line: #2b3442;
+  --text: #e7ebf1;
+  --muted: #9ba6b5;
+  --accent: #6aa3ff;
+  --accent-hover: #8ab7ff;
+  --on-accent: #0b1220;
+  --accent-soft: rgba(106, 163, 255, 0.14);
+  --free: #3ddc97;
+  --free-soft: rgba(61, 220, 151, 0.12);
+  --occ: #ffa04d;
+  --on-occ: #1f1203;
+  --unj: #7d8796;
+  --bad: #ff7a7a;
+  --bad-soft: rgba(255, 122, 122, 0.13);
+  --warn: #f2c94c;
+  --media: #06080b;
+  --media-line: rgba(255, 255, 255, 0.12);
+  --media-text: #7d8796;
+  --bar: #e7ebf1;
+  --on-bar: #0d1117;
+  --scrim: rgba(0, 0, 0, 0.62);
+  color-scheme: dark;
+}

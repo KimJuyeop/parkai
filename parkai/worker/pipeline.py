@@ -252,6 +252,10 @@ class Worker:
         info["states"] = {str(k): v for k, v in rt.states.items()}
         info["sent"] = complete
         info["boxes"] = len(boxes)
+        # 웹 화면이 원본 이미지 위에 직접 그리도록 검출 박스 좌표(기준 해상도)도 전달
+        info["dets"] = [
+            [round(b.x1), round(b.y1), round(b.x2), round(b.y2), round(b.score, 2)] for b in boxes
+        ]
         return info
 
     def _crop_to_views(self, img: np.ndarray, cam: Camera) -> np.ndarray:
@@ -269,16 +273,9 @@ class Worker:
 
     def _save_images(self, rt: CameraRuntime, p: Prepared, boxes: list[Box], changed: bool) -> None:
         cam = rt.cam
-        img = annotate(
-            p.image,
-            self.cfg.camera_ref_size(cam),
-            cam.slots,
-            {s.no: rt.states.get(s.no) for s in cam.slots},
-            boxes,
-            "",
-        )
-        img = self._crop_to_views(img, cam)  # 영상이 없는 영역(아래 검은 부분 등) 제외
-        ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 75])
+        # 최신 이미지: 선을 그리지 않은 원본 (웹 화면이 선·박스를 직접 그림). RAM 디스크, 매 사이클
+        raw = self._crop_to_views(p.image, cam)  # 영상이 없는 영역(아래 검은 부분 등) 제외
+        ok, buf = cv2.imencode(".jpg", raw, [cv2.IMWRITE_JPEG_QUALITY, 75])
         if not ok:
             return
         latest = self.run_dir / "latest" / f"{cam.ip}.jpg"
@@ -286,16 +283,27 @@ class Worker:
         tmp.write_bytes(buf.tobytes())
         for _ in range(3):  # Windows: 웹이 읽는 중이면 교체가 잠시 실패할 수 있음
             try:
-                os.replace(tmp, latest)  # RAM 디스크, 매 사이클
+                os.replace(tmp, latest)
                 break
             except PermissionError:
                 time.sleep(0.05)
 
+        # 기록 이미지: 상태가 바뀌었을 때 + 주기마다, 선·박스를 그려서 저장 (이때만 한 번 더 인코딩)
         now = time.time()
         if changed or now - rt.last_saved >= self.cfg.runtime.results.save_interval_sec:
-            d = self.data_dir / "results" / cam.ip
-            d.mkdir(parents=True, exist_ok=True)
-            (d / f"{datetime.now():%Y%m%d_%H%M%S}.jpg").write_bytes(buf.tobytes())
+            img = annotate(
+                p.image,
+                self.cfg.camera_ref_size(cam),
+                cam.slots,
+                {s.no: rt.states.get(s.no) for s in cam.slots},
+                boxes,
+                "",
+            )
+            ok, rec = cv2.imencode(".jpg", self._crop_to_views(img, cam), [cv2.IMWRITE_JPEG_QUALITY, 75])
+            if ok:
+                d = self.data_dir / "results" / cam.ip
+                d.mkdir(parents=True, exist_ok=True)
+                (d / f"{datetime.now():%Y%m%d_%H%M%S}.jpg").write_bytes(rec.tobytes())
             rt.last_saved = now
 
     def _enforce_results_limit(self) -> None:

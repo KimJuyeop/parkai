@@ -17,6 +17,10 @@ STAGE="$OUT/$NAME"
 rm -rf "$STAGE"
 mkdir -p "$STAGE/app" "$STAGE/wheels" "$STAGE/systemd"
 
+# 웹 화면 빌드 (React → parkai/web/static). 보드에는 빌드 결과만 들어가고 Node는 필요 없다.
+(cd "$ROOT/frontend" && npm ci --no-audit --no-fund && npm run build)
+test -f "$ROOT/parkai/web/static/index.html" || { echo "웹 화면 빌드 실패" >&2; exit 1; }
+
 # 앱
 cp -r "$ROOT/parkai" "$ROOT/pyproject.toml" "$ROOT/README.md" "$STAGE/app/"
 mkdir -p "$STAGE/app/examples"

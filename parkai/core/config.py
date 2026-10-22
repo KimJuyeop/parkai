@@ -107,7 +107,11 @@ class SlotType(BaseModel):
 
 # 주차 종류는 고정 (순서도 이대로 표시). 바꿀 수 있는 것은 색뿐이다.
 FIXED_SLOT_TYPES = [("normal", "일반"), ("compact", "경차"), ("disabled", "장애인"), ("ev", "전기차")]
-DEFAULT_SLOT_TYPES = [SlotType(id=i, name=n) for i, n in FIXED_SLOT_TYPES]
+# 빈칸일 때 만공등 기본 색 (현장 관례: 일반 녹색, 경차 보라, 장애인 파랑, 전기차 하늘색)
+DEFAULT_SLOT_COLORS = {"normal": "green", "compact": "purple", "disabled": "blue", "ev": "cyan"}
+DEFAULT_SLOT_TYPES = [
+    SlotType(id=i, name=n, color_available=DEFAULT_SLOT_COLORS[i]) for i, n in FIXED_SLOT_TYPES
+]
 
 
 class CameraProfile(BaseModel):
@@ -189,7 +193,10 @@ class AppConfig(BaseModel):
             d = t.model_dump() if isinstance(t, SlotType) else dict(t)
             if d.get("color_available") in INDICATOR_COLORS:
                 colors[d.get("id")] = d["color_available"]
-        return [SlotType(id=i, name=n, color_available=colors.get(i, "green")) for i, n in FIXED_SLOT_TYPES]
+        return [
+            SlotType(id=i, name=n, color_available=colors.get(i, DEFAULT_SLOT_COLORS[i]))
+            for i, n in FIXED_SLOT_TYPES
+        ]
 
     camera_profiles: dict[str, CameraProfile] = {}
     cameras: list[Camera] = []

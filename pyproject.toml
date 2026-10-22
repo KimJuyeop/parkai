@@ -24,7 +24,7 @@ build-backend = "setuptools.build_meta"
 include = ["parkai*"]
 
 [tool.setuptools.package-data]
-"parkai.web" = ["static/*"]
+"parkai.web" = ["static/*", "static/assets/*"]  # frontend 빌드 결과
 
 [tool.ruff]
 line-length = 110

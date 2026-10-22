@@ -41,8 +41,23 @@ def test_one_cycle(tmp_path: Path):
     cam = st["cameras"]["192.168.13.21"]
     assert cam["status"] == "ok"
     assert cam["states"] == {"1": True, "2": False, "3": False, "4": False, "5": False}
-    assert (tmp_path / "run" / "latest" / "192.168.13.21.jpg").exists()
     assert (tmp_path / "run" / "status.json").exists()
+    # 웹 화면이 직접 그릴 수 있도록 검출 박스 좌표(기준 해상도)를 함께 전달
+    assert cam["dets"] == [[100, 150, 240, 280, 0.9]]
+
+    # 최신 이미지는 선을 그리지 않은 원본(분석 영역만), 기록 이미지는 선·박스를 그린 것
+    on_line = [
+        (int(136 + (175 - 136) * t), int(236 + (198 - 236) * t)) for t in (0.3, 0.5, 0.7)
+    ]  # 1번 칸 선분 위
+
+    def line_is_green(img):  # draw.py 가 차량 있는 칸을 (0, 200, 0) 으로 그림
+        return all(np.abs(img[y, x].astype(int) - (0, 200, 0)).sum() < 90 for x, y in on_line)
+
+    latest = cv2.imread(str(tmp_path / "run" / "latest" / "192.168.13.21.jpg"))
+    assert latest.shape[:2] == (480, 1280)
+    assert not line_is_green(latest)
+    records = list((tmp_path / "data" / "results" / "192.168.13.21").glob("*.jpg"))
+    assert len(records) == 1 and line_is_green(cv2.imread(str(records[0])))
 
 
 def test_black_screen_not_judged(tmp_path: Path):

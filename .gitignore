@@ -9,9 +9,10 @@ venv/
 build/
 dist/
 
-# Frontend
+# Frontend (빌드 결과는 parkai/web/static 으로 나감: cd frontend && npm run build)
 frontend/node_modules/
 frontend/dist/
+parkai/web/static/
 
 # 로컬 데이터 (재생용 스냅샷, 실행 결과, 현장 설정)
 samples/
