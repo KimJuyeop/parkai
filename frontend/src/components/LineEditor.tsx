@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Camera, SlotTypeId } from "../api/types";
-import { MAX_SLOTS } from "../lib/domain";
+import { MAX_SLOTS, SLOT_TYPES } from "../lib/domain";
 import { CameraMedia, type ColorMode } from "./CameraMedia";
 import { Icon } from "./Icon";
 import { TypeSegment } from "./ui";
@@ -19,14 +19,6 @@ export function LineEditor({ cam, editing, newType, setNewType, allowStateColor 
   const img = useCameraImage(cam);
   const [stateColor, setStateColor] = useState(false);
   const mode: ColorMode = stateColor ? "state" : "type";
-  // 종류 고르기: 선을 고른 상태면 그 칸의 종류를 바꾸고, 아니면 다음에 그을 선의 종류를 정한다.
-  // 고른 종류는 다음 새 선에도 이어 쓴다 (같은 종류 칸을 연달아 긋기 편하게).
-  const sel = !editing.adding && editing.selected != null ? cam.slots.find((s) => s.no === editing.selected) : undefined;
-  const typeLabel = sel ? `${sel.no}번 칸 종류` : "새 선 종류";
-  const pickType = (t: SlotTypeId) => {
-    if (sel) editing.setType(sel.no, t);
-    setNewType(t);
-  };
   const msg = cam.slots.length === 0 && !editing.adding ? "아직 칸이 없습니다 · 선 추가로 시작하세요"
     : !img.src ? (img.error ?? "영상을 불러오는 중…") : null;
 
@@ -38,8 +30,25 @@ export function LineEditor({ cam, editing, newType, setNewType, allowStateColor 
           <Icon name="plus" />
           {editing.adding ? "추가 취소" : editing.full ? `최대 ${MAX_SLOTS}칸` : "선 추가"}
         </button>
-        <span className={`meta${sel ? " text-accent strong" : ""}`}>{typeLabel}</span>
-        <TypeSegment value={sel ? sel.type : newType} onPick={pickType} label={typeLabel} />
+        {editing.adding ? (
+          <>
+            {/* 선 추가 중에만 그을 선의 종류를 고른다. 이미 있는 칸의 종류는 칸을 선택해 옆 패널에서 바꾼다 */}
+            <span className="meta text-accent strong">새 선 종류</span>
+            <TypeSegment value={newType} onPick={setNewType} label="새 선 종류" />
+          </>
+        ) : mode === "state" ? (
+          <div className="legend" aria-label="선 색 범례">
+            <span className="legend__item"><span className="legend__swatch legend__swatch--occ" />차량 있음</span>
+            <span className="legend__item"><span className="legend__swatch legend__swatch--free" />빈칸</span>
+            <span className="legend__item"><span className="legend__swatch legend__swatch--unj" />판정 없음</span>
+          </div>
+        ) : (
+          <div className="legend" aria-label="선 색 범례">
+            {SLOT_TYPES.map((t) => (
+              <span key={t.id} className="legend__item"><span className="type-bar" style={{ background: t.color }} />{t.name}</span>
+            ))}
+          </div>
+        )}
         <span className="spacer" />
         {allowStateColor && (
           <label className="check check--inline">
@@ -57,7 +66,7 @@ export function LineEditor({ cam, editing, newType, setNewType, allowStateColor 
         edit={editing.handlers} label={`${cam.ip} 스냅샷과 칸 선분`}
       />
       <div className="editor-hint">
-        선 추가 → 두 점 클릭 · 흰 점을 끌어 위치 수정 · 선이나 번호를 눌러 선택 후 종류 변경 · Delete 로 삭제 · 최대 {MAX_SLOTS}칸 (현재 {cam.slots.length}칸)
+        선 추가 → 두 점 클릭 · 흰 점을 끌어 위치 수정 · 선이나 번호를 눌러 선택 · Delete 로 삭제 · 최대 {MAX_SLOTS}칸 (현재 {cam.slots.length}칸)
       </div>
     </div>
   );
