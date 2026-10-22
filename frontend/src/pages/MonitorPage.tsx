@@ -26,7 +26,7 @@ export function MonitorPage({ panelOpen, setPanelOpen, onGoSettings, onGoCamera 
   });
   const filters: { id: Filter; name: string; count: number }[] = [
     { id: "all", name: "전체", count: info.length },
-    { id: "free", name: "빈칸 있음", count: info.filter((x) => x.free).length },
+    { id: "free", name: "공차", count: info.filter((x) => x.free).length },
     { id: "full", name: "만차", count: info.filter((x) => x.full).length },
   ];
   const shown = info.filter((x) => filter === "all" || (filter === "free" ? x.free : x.full));
