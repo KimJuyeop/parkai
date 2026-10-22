@@ -22,7 +22,7 @@ export function AppHeader({ tab, onTab, theme, onTheme, panelOpen, onPanel }: {
       )}
       <div className="header__brand">
         <span className="header__name">주차유도 시스템</span>
-        <span className="mono meta">parking AI</span>
+        <span className="header__sub">parking AI</span>
       </div>
       <nav className="header__nav" aria-label="주 메뉴">
         {TABS.map((t) => (

@@ -91,6 +91,13 @@
   --bar-accent: #ffa04d; /* 저장 바: 저장 안 한 변경 표시 */
   --bar-error: #ff9b9b;
   --scrim: rgba(0, 0, 0, 0.55);
+  --head: #16233a;       /* 맨 위 줄 (남색) */
+  --head-line: #16233a;
+  --head-text: #ffffff;
+  --head-muted: #9fb0c8;
+  --head-accent: #5b9bff; /* 선택된 메뉴 밑줄 */
+  --head-btn-line: #33445f;
+  --head-btn-hover: #233552;
   color-scheme: light;
 }
 
@@ -122,5 +129,12 @@
   --bar-accent: #b84f00;
   --bar-error: #b42318;
   --scrim: rgba(0, 0, 0, 0.62);
+  --head: #101a2b;
+  --head-line: #2b3442;
+  --head-text: #e7ebf1;
+  --head-muted: #8d9bb0;
+  --head-accent: #6aa3ff;
+  --head-btn-line: #2f3d55;
+  --head-btn-hover: #1b2840;
   color-scheme: dark;
 }
