@@ -41,8 +41,23 @@ def test_one_cycle(tmp_path: Path):
     cam = st["cameras"]["192.168.13.21"]
     assert cam["status"] == "ok"
     assert cam["states"] == {"1": True, "2": False, "3": False, "4": False, "5": False}
-    assert (tmp_path / "run" / "latest" / "192.168.13.21.jpg").exists()
     assert (tmp_path / "run" / "status.json").exists()
+    # 웹 화면이 직접 그릴 수 있도록 검출 박스 좌표(기준 해상도)를 함께 전달
+    assert cam["dets"] == [[100, 150, 240, 280, 0.9]]
+
+    # 최신 이미지는 선을 그리지 않은 원본(분석 영역만), 기록 이미지는 선·박스를 그린 것
+    on_line = [
+        (int(136 + (175 - 136) * t), int(236 + (198 - 236) * t)) for t in (0.3, 0.5, 0.7)
+    ]  # 1번 칸 선분 위
+
+    def line_is_green(img):  # draw.py 가 차량 있는 칸을 (0, 200, 0) 으로 그림
+        return all(np.abs(img[y, x].astype(int) - (0, 200, 0)).sum() < 90 for x, y in on_line)
+
+    latest = cv2.imread(str(tmp_path / "run" / "latest" / "192.168.13.21.jpg"))
+    assert latest.shape[:2] == (480, 1280)
+    assert not line_is_green(latest)
+    records = list((tmp_path / "data" / "results" / "192.168.13.21").glob("*.jpg"))
+    assert len(records) == 1 and line_is_green(cv2.imread(str(records[0])))
 
 
 def test_black_screen_not_judged(tmp_path: Path):
@@ -63,3 +78,27 @@ def test_black_screen_not_judged(tmp_path: Path):
     w.sender.stop()
     assert st["cameras"]["192.168.13.21"]["status"] == "black"
     assert st["cameras"]["192.168.13.21"]["states"] == {}
+
+
+def test_replay_falls_back_to_camera_without_samples(tmp_path: Path):
+    """재생 모드여도 샘플 폴더가 없는 카메라는 실제 카메라(HTTP)에서 받는다."""
+    from parkai.worker.sources import HttpSnapshotSource, ReplaySource
+
+    cfg_path = tmp_path / "config.json"
+    shutil.copy("examples/config.example.json", cfg_path)
+    cam_dir = tmp_path / "replay" / "192.168.13.21"
+    cam_dir.mkdir(parents=True)
+    cv2.imwrite(str(cam_dir / "0001.jpg"), make_frame())
+
+    w = Worker(
+        cfg_path,
+        load_detector("fixture", None),
+        tmp_path / "run",
+        tmp_path / "data",
+        replay_dir=tmp_path / "replay",
+    )
+    cam = w.cfg.cameras[0]
+    assert isinstance(w._make_source(cam), ReplaySource)
+    other = cam.model_copy(update={"ip": "192.168.13.99"})
+    assert isinstance(w._make_source(other), HttpSnapshotSource)
+    w.sender.stop()

@@ -23,7 +23,7 @@ from pydantic import ValidationError
 
 from .. import __version__
 from ..core.config import AppConfig, load_config
-from ..core.system import board_ip, board_model, device_id
+from ..core.system import board_ip, board_model, device_id, resources
 from ..outputs.server import build_payload
 from ..worker.sources import IMAGE_EXT, HttpSnapshotSource, SourceError
 
@@ -81,6 +81,7 @@ def system():
         "model": cfg.detection.model,
         "preset": cfg.detection.preset,
         "config_path": str(CONFIG),
+        "resources": resources(CONFIG.parent),
     }
 
 

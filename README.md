@@ -19,7 +19,8 @@ parkai/
   backends/    stai (보드 NPU), onnx (PC), fixture (모델 없이 개발)
   postprocess/ 모델 구조별 후처리 (yolox ...)
   outputs/     서버 전송, 만공등 제어
-  web/         FastAPI API + 웹 설정 화면 (static/, 빌드 없는 순수 JS)
+  web/         FastAPI API + 웹 화면 서빙 (static/ = frontend 빌드 결과)
+frontend/      웹 화면 소스 (React + TypeScript + Vite)
 packaging/     번들 빌드, install.sh, systemd, 보드 프로필
 tools/         판정 규칙 비교, 벤치마크 등
 tests/
@@ -34,6 +35,10 @@ python3.12 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e ".[pc,dev]"
 pytest
+
+cd frontend                        # 웹 화면 (Node 20 이상)
+npm install
+npm run build                      # → parkai/web/static
 ```
 
 ## 실행 (PC)
@@ -43,7 +48,8 @@ python tools/dev.py            # 웹(8080) + 워커, 실제 카메라에서 스�
 python tools/dev.py --replay   # samples/<카메라IP>/*.jpg 재생
 ```
 
-- 브라우저에서 http://localhost:8080 → 대시보드 / 카메라 설정 / 시스템 설정
+- 브라우저에서 http://localhost:8080 → 모니터링 / 카메라 설정 / 시스템 설정
+- 화면을 고치는 중이면 `cd frontend && npm run dev` → http://localhost:5173 (API는 8080으로 프록시, 저장하면 바로 반영)
 - 설정 파일은 `data/config.json` (처음 실행 시 예시를 복사, Git에 올라가지 않음)
 - 카메라에 접속할 수 없으면 `samples/<카메라IP>/`의 마지막 이미지를 설정 화면에 보여줌
 - 모델이 없을 때는 fixture 검출기를 사용: 이미지 옆 `*.json`의 박스를 검출 결과로 쓰고, 없으면 검출 없음(전부 빈칸)

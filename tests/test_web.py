@@ -95,3 +95,21 @@ def test_old_config_with_camera_password_keeps_own_account():
         }
     )
     assert c.cameras[0].own_account and c.camera_account(c.cameras[0]) == ("u", "pw")
+
+
+def test_system_reports_resources(tmp_path, monkeypatch):
+    client, _ = make_client(tmp_path, monkeypatch)
+    res = client.get("/api/v1/system").json()["resources"]
+    assert set(res) == {"cpu_percent", "memory", "temperature_c", "storage"}
+    if res["memory"]:  # Linux에서는 /proc/meminfo 로 읽힘
+        assert 0 < res["memory"]["used_mb"] <= res["memory"]["total_mb"]
+
+
+def test_default_indicator_colors_per_slot_type():
+    from parkai.core.config import AppConfig
+
+    colors = {t.id: t.color_available for t in AppConfig().slot_types}
+    assert colors == {"normal": "green", "compact": "purple", "disabled": "blue", "ev": "cyan"}
+    # 저장된 색은 그대로 유지
+    cfg = AppConfig.model_validate({"slot_types": [{"id": "ev", "name": "x", "color_available": "white"}]})
+    assert {t.id: t.color_available for t in cfg.slot_types}["ev"] == "white"

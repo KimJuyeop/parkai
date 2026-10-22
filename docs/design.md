@@ -93,8 +93,12 @@ PC(노트북) 화면 기준, 화면 시안을 보면서 수정해 나간다.
 | 네트워크·서버 | 보드 IP(적용 후 확인 방식), 서버 주소, 전송 테스트 |
 | 시스템 | 버전, 업데이트, 로그, 처리 시간, 설정 백업/복원, 결과 이미지 |
 
-API는 `/api/v1` 아래 REST. 화면은 빌드 과정 없는 순수 JS(`parkai/web/static/`)로 시작한다.
-화면을 보면서 빠르게 고치기 위해서이며, 규모가 커지면 React로 옮긴다.
+API는 `/api/v1` 아래 REST. 화면은 React + TypeScript(`frontend/`)이고, PC에서 빌드한 결과만
+`parkai/web/static/`에 넣어 FastAPI가 서빙한다 (보드에 Node 불필요). 구성은 [frontend/README.md](../frontend/README.md).
+
+- 워커의 최신 이미지(`/run/parkai/latest`)는 선을 그리지 않은 원본이고, 화면이 칸 선분·검출 박스(`status.json`의 `dets`)를 직접 그린다.
+  선·박스를 그린 이미지는 기록 이미지(`results/`)에만 저장한다.
+- `/api/v1/system`의 `resources`: CPU·메모리·온도·저장공간 (모니터링 상태 줄)
 
 ## 6. 서버 전송과 만공등
 
