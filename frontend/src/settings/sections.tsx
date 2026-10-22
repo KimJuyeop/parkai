@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { api } from "../api/client";
 import type { AppConfig, CameraProfile, Preset, ServerTestResult } from "../api/types";
-import { INDICATOR_COLORS, PRESETS } from "../lib/domain";
+import { FULL_LAMP, INDICATOR_COLORS, PRESETS } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 import { Check, Field, TextInput } from "../components/ui";
 import { Icon } from "../components/Icon";
@@ -168,7 +168,7 @@ export function LampFields() {
       <div className="lamp-row">
         <span className="lamp-row__name">만차</span>
         <span className="meta" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <span className="swatch__fill" style={{ background: "#dc2626", display: "inline-block" }} />빨간색 (고정)
+          <span className="swatch__fill" style={{ background: FULL_LAMP.hex, display: "inline-block" }} />{FULL_LAMP.name} (고정)
         </span>
       </div>
     </div>
@@ -268,8 +268,8 @@ function ViewsPreview({ profile }: { profile: CameraProfile }) {
         style={{ width: "100%", aspectRatio: `${rw} / ${rh}`, borderRadius: 8, background: "var(--media)" }}>
         {profile.views.map((v, i) => (
           <g key={i}>
-            <rect x={v[0]} y={v[1]} width={v[2]} height={v[3]} fill="rgba(106,163,255,.16)" stroke="#6aa3ff" strokeWidth={rw / 200} />
-            <text x={v[0] + v[2] / 2} y={v[1] + v[3] / 2} fill="#e7ebf1" fontSize={rw / 20} textAnchor="middle" dominantBaseline="central">{i + 1}</text>
+            <rect x={v[0]} y={v[1]} width={v[2]} height={v[3]} fill="var(--view-fill)" stroke="var(--view-line)" strokeWidth={rw / 200} />
+            <text x={v[0] + v[2] / 2} y={v[1] + v[3] / 2} fill="var(--media-veil-text)" fontSize={rw / 20} textAnchor="middle" dominantBaseline="central">{i + 1}</text>
           </g>
         ))}
       </svg>

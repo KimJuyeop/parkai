@@ -127,7 +127,7 @@ export function CameraMedia(props: Props) {
         ))}
         {dets?.map((d, i) => (
           <rect key={i} x={d[0]} y={d[1]} width={d[2] - d[0]} height={d[3] - d[1]} fill="none"
-            stroke="rgba(255,255,255,.55)" strokeWidth={1.5 * u} />
+            stroke="var(--media-det)" strokeWidth={1.5 * u} />
         ))}
         {slots.map((s) => {
           const st = states(s.no);
@@ -140,7 +140,7 @@ export function CameraMedia(props: Props) {
           const tw = (String(s.no).length * 8 + 10) * u, th = 18 * u;
           return (
             <g key={s.no}>
-              {sel && <line x1={ax} y1={ay} x2={bx} y2={by} stroke="#fff" strokeWidth={w + 5 * u} strokeLinecap="round" />}
+              {sel && <line x1={ax} y1={ay} x2={bx} y2={by} stroke="var(--media-fg)" strokeWidth={w + 5 * u} strokeLinecap="round" />}
               <line x1={ax} y1={ay} x2={bx} y2={by} stroke={color} strokeWidth={w} strokeLinecap="round" strokeDasharray={dash} />
               {onSelect && (
                 <line x1={ax} y1={ay} x2={bx} y2={by} stroke="transparent" strokeWidth={16 * u}
@@ -149,11 +149,11 @@ export function CameraMedia(props: Props) {
               <g style={{ cursor: onSelect ? "pointer" : "default" }}
                 onPointerDown={(e) => { if (onSelect && !edit?.adding) { e.stopPropagation(); onSelect(s.no); } }}>
                 <rect x={mx - tw / 2} y={my - th / 2} width={tw} height={th} rx={4 * u}
-                  fill="rgba(0,0,0,.75)" stroke={sel ? "#fff" : "none"} strokeWidth={u} />
+                  fill="var(--media-tag)" stroke={sel ? "var(--media-fg)" : "none"} strokeWidth={u} />
                 <text className="slot-tag" x={mx} y={my} fontSize={12 * u} textAnchor="middle" dominantBaseline="central">{s.no}</text>
               </g>
               {edit && !edit.adding && ([0, 1] as const).map((end) => (
-                <circle key={end} cx={s.line[end][0]} cy={s.line[end][1]} r={6 * u} fill="#fff" stroke={color} strokeWidth={2.5 * u}
+                <circle key={end} cx={s.line[end][0]} cy={s.line[end][1]} r={6 * u} fill="var(--media-fg)" stroke={color} strokeWidth={2.5 * u}
                   style={{ cursor: "grab" }} onPointerDown={grab(s.no, end)} />
               ))}
             </g>

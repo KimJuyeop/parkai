@@ -38,6 +38,23 @@
   --type-ev: #8ecdf7;
   --draft-line: #facc15;
 
+  /* 영상 위 글자·선 (두 테마 공통: 영상 바탕은 항상 어둡다) */
+  --media-fg: #ffffff;                       /* 칸 번호, 선택 강조, 끝점 */
+  --media-fg-dim: rgba(255, 255, 255, 0.78); /* 갱신 시각 */
+  --media-shade: rgba(0, 0, 0, 0.62);        /* 위쪽 그림자 (IP 글자 배경) */
+  --media-msg: #c5ccd6;                      /* 영상 없음 안내 */
+  --media-veil: rgba(6, 8, 11, 0.55);        /* 영상 위 반투명 안내 바탕 */
+  --media-veil-text: #e7ebf1;
+  --media-pop: rgba(0, 0, 0, 0.8);           /* 선 추가 안내 바탕 */
+  --media-tag: rgba(0, 0, 0, 0.75);          /* 칸 번호 바탕 */
+  --media-det: rgba(255, 255, 255, 0.55);    /* 검출 박스 */
+  --view-fill: rgba(106, 163, 255, 0.16);    /* 분석 영역 미리보기 */
+  --view-line: #6aa3ff;
+
+  /* 그림자·테두리 */
+  --shadow-pop: 0 6px 20px rgba(0, 0, 0, 0.25);
+  --swatch-ring: rgba(0, 0, 0, 0.18);
+
   --dur: 160ms;
 }
 
@@ -60,12 +77,15 @@
   --unj: #8a94a3;       /* 판정 없음 */
   --bad: #c62828;
   --bad-soft: #fdeaea;
+  --on-bad: #ffffff;
   --warn: #8a6100;
   --media: #151a21;     /* 영상 바탕 */
   --media-line: rgba(255, 255, 255, 0.14);
   --media-text: #8d97a6;
   --bar: #111723;       /* 저장 바 */
   --on-bar: #f2f4f7;
+  --bar-accent: #ffa04d; /* 저장 바: 저장 안 한 변경 표시 */
+  --bar-error: #ff9b9b;
   --scrim: rgba(0, 0, 0, 0.55);
   color-scheme: light;
 }
@@ -88,12 +108,15 @@
   --unj: #7d8796;
   --bad: #ff7a7a;
   --bad-soft: rgba(255, 122, 122, 0.13);
+  --on-bad: #1f0606;
   --warn: #f2c94c;
   --media: #06080b;
   --media-line: rgba(255, 255, 255, 0.12);
   --media-text: #7d8796;
   --bar: #e7ebf1;
   --on-bar: #0d1117;
+  --bar-accent: #b84f00;
+  --bar-error: #b42318;
   --scrim: rgba(0, 0, 0, 0.62);
   color-scheme: dark;
 }

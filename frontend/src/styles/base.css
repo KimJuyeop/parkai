@@ -84,6 +84,7 @@ h1, h2, h3 { margin: 0; }
 .badge--bad { background: var(--bad-soft); color: var(--bad); }
 .badge--accent { background: var(--accent-soft); color: var(--accent); }
 .badge--ok { background: var(--free-soft); color: var(--free); }
+.badge--solid-bad { background: var(--bad); color: var(--on-bad); }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--unj); }
 .dot--ok { background: var(--free); }
 .dot--bad { background: var(--bad); }
@@ -113,4 +114,4 @@ h1, h2, h3 { margin: 0; }
 .table tr:last-child td { border-bottom: none; }
 
 /* 토스트 */
-.toast { position: fixed; right: var(--sp-5); bottom: var(--sp-5); z-index: 60; padding: 10px 14px; border-radius: var(--radius); background: var(--bar); color: var(--on-bar); font-size: var(--fs-control); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); }
+.toast { position: fixed; right: var(--sp-5); bottom: var(--sp-5); z-index: 60; padding: 10px 14px; border-radius: var(--radius); background: var(--bar); color: var(--on-bar); font-size: var(--fs-control); box-shadow: var(--shadow-pop); }

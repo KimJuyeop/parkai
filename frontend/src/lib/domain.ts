@@ -11,7 +11,10 @@ export const SLOT_TYPES: { id: SlotTypeId; name: string; short: string; color: s
 ];
 export const slotType = (id: string) => SLOT_TYPES.find((t) => t.id === id) ?? SLOT_TYPES[0];
 
-/** 만공등 색 (실제 지원 색은 카메라 사양 확인 후 조정) */
+/**
+ * 만공등 색 (실제 지원 색은 카메라 사양 확인 후 조정).
+ * 화면 테마가 아니라 실제 LED 색 정의라 tokens.css 규칙의 예외로 여기에 둔다.
+ */
 export const INDICATOR_COLORS: { id: IndicatorColor; name: string; hex: string }[] = [
   { id: "green", name: "녹색", hex: "#16a34a" },
   { id: "blue", name: "파란색", hex: "#2563eb" },
@@ -20,6 +23,8 @@ export const INDICATOR_COLORS: { id: IndicatorColor; name: string; hex: string }
   { id: "purple", name: "보라색", hex: "#9333ea" },
   { id: "cyan", name: "하늘색", hex: "#06b6d4" },
 ];
+/** 만차일 때 만공등 색 (항상 빨강, 바꿀 수 없음) */
+export const FULL_LAMP = { name: "빨간색", hex: "#dc2626" } as const;
 
 export const PRESETS = [
   { id: "legacy", name: "기존 방식", desc: "선에 차량 박스가 닿으면 차량 있음 · 매 주기 반영", tag: "Jetson과 동일" },

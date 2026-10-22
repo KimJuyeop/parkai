@@ -26,7 +26,7 @@ export function CameraCard({ cam, onOpen, onEdit }: { cam: Camera; onOpen: () =>
             <div className="media__top">
               <span className="media__ip">{cam.ip}</span>
               <span className="spacer" />
-              {view.offline && <span className="badge" style={{ background: "#c62828", color: "#fff" }}>응답 없음</span>}
+              {view.offline && <span className="badge badge--solid-bad">응답 없음</span>}
               <span className="media__time">{cs?.updated_at ? ago(cs.updated_at) : ""}</span>
             </div>
           }
