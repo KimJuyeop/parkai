@@ -80,7 +80,16 @@ export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startE
                 {stateLabel(selState)}
               </span>
             </div>
-            <TypePicker value={sel.type} onPick={(t) => editing.setType(sel.no, t)} label={`${sel.no}번 칸 주차 종류`} />
+            {editingMode ? (
+              <TypePicker value={sel.type} onPick={(t) => editing.setType(sel.no, t)} label={`${sel.no}번 칸 주차 종류`} />
+            ) : (
+              // 보기 상태에서는 설정을 바꾸지 않는다 (종류 변경·삭제는 선 편집 중에만)
+              <div className="type-view">
+                <span className="type-bar" style={{ background: slotType(sel.type).color }} />
+                <span>{slotType(sel.type).name}</span>
+                <span className="meta">· 바꾸려면 선 편집</span>
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span className="mono meta spacer">{fmtPoint(sel.line[0])} → {fmtPoint(sel.line[1])}</span>
               {editingMode && (

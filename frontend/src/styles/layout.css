@@ -83,6 +83,7 @@
 .slot-btn .chip { min-width: 28px; height: 26px; }
 .type-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 6px; }
 .type-pick--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.type-view { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--control-h); font-size: var(--fs-control); }
 .type-pick__btn { display: flex; align-items: center; justify-content: center; gap: var(--sp-2); min-height: 40px; padding: 4px 8px; border-radius: var(--radius); border: 1.5px solid var(--line); background: var(--surface); font-size: var(--fs-control); white-space: nowrap; }
 .type-pick__btn[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
 

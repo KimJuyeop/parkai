@@ -17,7 +17,9 @@ export function StatusStrip() {
   const memPct = mem ? Math.round((mem.used_mb / mem.total_mb) * 100) : null;
   const disk = res?.storage;
   const hist = cycleHistory.length ? cycleHistory : [];
-  const hmax = Math.max(1, ...hist);
+  // 그래프 막대 높이 기준 (짧은 사이클이 너무 커 보이지 않도록 최소 1초). 표시하는 최대값과는 다르다
+  const scale = Math.max(1, ...hist);
+  const max = hist.length ? Math.max(...hist) : null;
   const avg = hist.length ? hist.reduce((a, b) => a + b, 0) / hist.length : null;
   const gb = (mb: number) => (mb / 1024).toFixed(1);
 
@@ -43,11 +45,11 @@ export function StatusStrip() {
           </span>
           <div className="spark" aria-hidden="true">
             {hist.map((v, i) => (
-              <span key={i} className="spark__bar" style={{ height: `${Math.round((v / hmax) * 100)}%`, background: i === hist.length - 1 ? "var(--accent)" : undefined }} />
+              <span key={i} className="spark__bar" style={{ height: `${Math.round((v / scale) * 100)}%`, background: i === hist.length - 1 ? "var(--accent)" : undefined }} />
             ))}
           </div>
         </div>
-        <span className="meta mono">{avg != null ? `평균 ${avg.toFixed(1)} · 최대 ${hmax.toFixed(1)}` : "기록 없음"}</span>
+        <span className="meta mono">{avg != null && max != null ? `평균 ${avg.toFixed(1)} · 최대 ${max.toFixed(1)}` : "기록 없음"}</span>
       </div>
       <div className="stat">
         <span className="meta">CPU</span>
