@@ -151,4 +151,5 @@ h1, h2, h3 { margin: 0; }
 .text-plain { color: var(--text); }
 .ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pre-line { white-space: pre-line; }
+.balance { text-wrap: balance; word-break: keep-all; }
 .soft-box { padding: var(--sp-3); border-radius: var(--radius); background: var(--surface-2); }

@@ -100,7 +100,7 @@ export function JudgeFields({ compact }: P) {
             <span className="stack gap-half">
               <span className="preset__name">{p.name}</span>
               <span className="meta">{p.desc}</span>
-              {!compact && <span className="meta mono">{p.tag}</span>}
+              {!compact && <span className="meta">{p.tag}</span>}
             </span>
           </button>
         ))}

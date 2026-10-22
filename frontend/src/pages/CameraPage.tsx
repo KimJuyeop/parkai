@@ -126,14 +126,14 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
                 }} />
               </Field>
               <div className="form-grid form-grid--2">
-                <Field label="포트"><TextInput mono type="number" value={cam.port} onCommit={(v) => setCam((c) => { c.port = Number(v) || 80; }, "포트 변경")} /></Field>
-                <Field label="프로필">
+                <Field label="프로필" className="span-2">
                   <select className="select" value={cam.profile} onChange={(e) => setCam((c) => { c.profile = e.target.value; }, "프로필 변경")}>
                     {Object.keys(cfg.camera_profiles).map((p) => <option key={p}>{p}</option>)}
                   </select>
                 </Field>
-                <Field label="담당 보드"><TextInput value={cam.board ?? ""} placeholder="모든 보드" onCommit={(v) => setCam((c) => { c.board = v.trim() || null; }, "담당 보드 변경")} /></Field>
+                <Field label="포트"><TextInput mono type="number" value={cam.port} onCommit={(v) => setCam((c) => { c.port = Number(v) || 80; }, "포트 변경")} /></Field>
                 <Field label="컨트롤러 IP"><TextInput mono value={cam.controller_ip ?? ""} placeholder="없음" onCommit={(v) => setCam((c) => { c.controller_ip = v.trim() || null; }, "컨트롤러 IP 변경")} /></Field>
+                <Field label="담당 보드" className="span-2"><TextInput value={cam.board ?? ""} placeholder="모든 보드" onCommit={(v) => setCam((c) => { c.board = v.trim() || null; }, "담당 보드 변경")} /></Field>
               </div>
               <div className="divided">
                 <Check label="판정에 사용" checked={cam.enabled} onChange={(v) => setCam((c) => { c.enabled = v; }, v ? "판정 사용" : "판정 사용 안 함")} />
@@ -164,7 +164,7 @@ function SelectedSlot({ cam, editing, states }: {
   cam: Camera; editing: ReturnType<typeof useSlotEditing>; states: (no: number) => boolean | null;
 }) {
   const s = cam.slots.find((x) => x.no === editing.selected);
-  if (!s) return <div className="panel panel__body"><span className="meta">선이나 번호를 누르면 그 칸을 고칠 수 있습니다</span></div>;
+  if (!s) return <div className="panel panel__body"><span className="meta balance">선이나 번호를 누르면 그 칸을 고칠 수 있습니다</span></div>;
   const st = states(s.no);
   return (
     <div className="panel panel__body panel--active">
@@ -223,13 +223,13 @@ function AddCameraDialog({ onClose, onAdded }: { onClose: () => void; onAdded: (
           <div className="form-grid form-grid--2">
             <Field label="시작 IP"><input className="input mono" autoFocus value={start} placeholder="192.168.13.26" onChange={(e) => setStart(e.target.value)} /></Field>
             <Field label="끝 (번호 또는 IP)"><input className="input mono" value={end} placeholder="비우면 한 대" onChange={(e) => setEnd(e.target.value)} /></Field>
-            <Field label="포트"><input className="input mono" type="number" value={port} onChange={(e) => setPort(e.target.value)} /></Field>
-            <Field label="프로필">
+            <Field label="프로필" className="span-2">
               <select className="select" value={profile} onChange={(e) => setProfile(e.target.value)}>
                 {profiles.map((p) => <option key={p}>{p}</option>)}
               </select>
             </Field>
-            <Field label="담당 보드" className="span-2"><input className="input" value={board} placeholder="모든 보드" onChange={(e) => setBoard(e.target.value)} /></Field>
+            <Field label="포트"><input className="input mono" type="number" value={port} onChange={(e) => setPort(e.target.value)} /></Field>
+            <Field label="담당 보드"><input className="input" value={board} placeholder="모든 보드" onChange={(e) => setBoard(e.target.value)} /></Field>
           </div>
           <div className="stack soft-box">
             <div className="row row--between row--baseline gap-2-5">
