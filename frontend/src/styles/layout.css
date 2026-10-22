@@ -18,10 +18,13 @@
 .page__side { flex: 1 1 280px; max-width: 320px; min-width: 250px; display: flex; flex-direction: column; gap: var(--sp-3); }
 .page__list { flex: 1 1 240px; max-width: 280px; min-width: 220px; }
 
-/* 빠른 설정 패널 / 접힌 탭 */
-.rail { flex: none; width: 40px; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2-5); padding: var(--sp-3-5) 0; border-radius: var(--radius-lg); border: 1px solid var(--line); background: var(--surface); }
+/* 빠른 설정 패널 / 접힌 탭: 모니터링 화면 왼쪽에 여백 없이 붙는다 */
+.monitor { flex: 1 1 auto; display: flex; align-items: stretch; min-width: 0; }
+.monitor > .page { margin: 0; flex: 1 1 0; min-width: 0; align-self: flex-start; }
+.rail { flex: none; width: 40px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: var(--sp-2-5); padding: var(--sp-4) 0; border: none; border-right: 1px solid var(--line); border-radius: 0; background: var(--surface); }
+.rail:hover { background: var(--surface-2); }
 .rail__label { writing-mode: vertical-rl; font-size: var(--fs-control); font-weight: 600; letter-spacing: 3px; }
-.quick { flex: 1 1 300px; max-width: 340px; min-width: 260px; overflow: hidden; display: flex; flex-direction: column; }
+.quick { flex: none; width: 320px; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--line); }
 .acc__head { width: 100%; display: flex; align-items: center; gap: var(--sp-2-5); min-height: 48px; padding: 0 var(--sp-4); border: none; border-bottom: 1px solid var(--line); background: transparent; text-align: left; }
 .acc__head[aria-expanded="true"] { background: var(--surface-2); }
 .acc__title { flex: 1 1 0; font-size: var(--fs-body); font-weight: 600; }
@@ -164,8 +167,10 @@
 
 @media (max-width: 720px) {
   .page { padding: var(--sp-3); }
-  .page__side, .page__list, .quick, .toc { max-width: none; }
-  .rail { width: 100%; min-height: 44px; flex-direction: row; padding: 0 var(--sp-3); }
+  .page__side, .page__list, .toc { max-width: none; }
+  .monitor { flex-direction: column; }
+  .quick { width: auto; border-right: none; border-bottom: 1px solid var(--line); }
+  .rail { width: 100%; min-height: 44px; flex-direction: row; justify-content: center; padding: 0 var(--sp-3); border-right: none; border-bottom: 1px solid var(--line); }
   .rail__label { writing-mode: horizontal-tb; letter-spacing: 0; }
   .form-grid--2 { grid-template-columns: 1fr; }
   .span-2 { grid-column: auto; }

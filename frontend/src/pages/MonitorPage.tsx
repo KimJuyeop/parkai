@@ -32,7 +32,7 @@ export function MonitorPage({ panelOpen, setPanelOpen, onGoSettings, onGoCamera 
   const shown = info.filter((x) => filter === "all" || (filter === "free" ? x.free : x.full));
 
   return (
-    <div className="page">
+    <div className="monitor">
       {panelOpen ? <QuickSettings onClose={() => setPanelOpen(false)} onGoSettings={onGoSettings} /> : (
         <button type="button" className="rail" aria-label="빠른 설정 패널 열기" onClick={() => setPanelOpen(true)}>
           <Icon name="chevronRight" size={18} />
@@ -40,41 +40,43 @@ export function MonitorPage({ panelOpen, setPanelOpen, onGoSettings, onGoCamera 
         </button>
       )}
 
-      <main className="page__main">
-        <StatusStrip />
+      <div className="page">
+        <main className="page__main">
+          <StatusStrip />
 
-        <div className="list-head">
-          <h1 className="title">카메라</h1>
-          <div className="tabs" role="group" aria-label="카메라 보기 필터">
-            {filters.map((f) => (
-              <button key={f.id} type="button" className="tabs__btn" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
-                {f.name}<span className="tabs__count">{f.count}</span>
-              </button>
-            ))}
+          <div className="list-head">
+            <h1 className="title">카메라</h1>
+            <div className="tabs" role="group" aria-label="카메라 보기 필터">
+              {filters.map((f) => (
+                <button key={f.id} type="button" className="tabs__btn" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
+                  {f.name}<span className="tabs__count">{f.count}</span>
+                </button>
+              ))}
+            </div>
+            <span className="spacer" />
+            <div className="legend">
+              <span className="legend__item"><span className="legend__swatch legend__swatch--occ" />차량 있음</span>
+              <span className="legend__item"><span className="legend__swatch legend__swatch--free" />빈칸</span>
+              <span className="legend__item"><span className="legend__swatch legend__swatch--unj" />판정 없음</span>
+            </div>
           </div>
-          <span className="spacer" />
-          <div className="legend">
-            <span className="legend__item"><span className="legend__swatch legend__swatch--occ" />차량 있음</span>
-            <span className="legend__item"><span className="legend__swatch legend__swatch--free" />빈칸</span>
-            <span className="legend__item"><span className="legend__swatch legend__swatch--unj" />판정 없음</span>
-          </div>
-        </div>
 
-        {cams.length === 0 ? (
-          <div className="empty">
-            <span>등록된 카메라가 없습니다.</span>
-            <button type="button" className="btn btn--primary" onClick={onGoCamera}><Icon name="plus" />카메라 추가하기</button>
-          </div>
-        ) : shown.length === 0 ? (
-          <div className="empty">조건에 맞는 카메라가 없습니다.</div>
-        ) : (
-          <div className="cards">
-            {shown.map(({ cam }) => (
-              <CameraCard key={cam.ip} cam={cam} onOpen={() => setDialog({ ip: cam.ip, edit: false })} onEdit={() => setDialog({ ip: cam.ip, edit: true })} />
-            ))}
-          </div>
-        )}
-      </main>
+          {cams.length === 0 ? (
+            <div className="empty">
+              <span>등록된 카메라가 없습니다.</span>
+              <button type="button" className="btn btn--primary" onClick={onGoCamera}><Icon name="plus" />카메라 추가하기</button>
+            </div>
+          ) : shown.length === 0 ? (
+            <div className="empty">조건에 맞는 카메라가 없습니다.</div>
+          ) : (
+            <div className="cards">
+              {shown.map(({ cam }) => (
+                <CameraCard key={cam.ip} cam={cam} onOpen={() => setDialog({ ip: cam.ip, edit: false })} onEdit={() => setDialog({ ip: cam.ip, edit: true })} />
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
 
       {dialog && <CameraDialog ip={dialog.ip} startEditing={dialog.edit} onClose={() => setDialog(null)} />}
     </div>
@@ -93,7 +95,7 @@ function QuickSettings({ onClose, onGoSettings }: { onClose: () => void; onGoSet
     { id: "lamp", title: "만공등 색", summary: "종류별", body: <LampFields /> },
   ];
   return (
-    <aside className="panel quick" aria-label="빠른 설정">
+    <aside className="quick" aria-label="빠른 설정">
       <div className="panel__head">
         <h2 className="section-title spacer">빠른 설정</h2>
         <button type="button" className="btn btn--icon" aria-label="빠른 설정 패널 접기" onClick={onClose}>
