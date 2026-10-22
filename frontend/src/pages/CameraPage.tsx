@@ -11,11 +11,10 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
   const { cfg, status, alive, edit, toast } = useCfg();
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
-  const [newType, setNewType] = useState<SlotTypeId>("normal");
   const cams = cfg.cameras;
   const ip = selectedIp && cams.some((c) => c.ip === selectedIp) ? selectedIp : cams[0]?.ip ?? null;
   const cam = cams.find((c) => c.ip === ip);
-  const editing = useSlotEditing(ip ?? undefined, newType);
+  const editing = useSlotEditing(ip ?? undefined);
   const view = useCameraView(cam);
   // 카메라 설정 화면에서만 실패 원인을 보여준다 (모니터링은 정상/응답 없음만)
   const camError = cam && alive ? status.cameras[cam.ip]?.error : null;
@@ -73,7 +72,7 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
             </div>
             {camError && <p className="meta text-bad pre-line">카메라에서 영상을 받지 못했습니다: {camError}</p>}
 
-            <LineEditor cam={cam} editing={editing} newType={newType} setNewType={setNewType} />
+            <LineEditor cam={cam} editing={editing} />
 
             <div className="panel table-wrap">
               <table className="table">

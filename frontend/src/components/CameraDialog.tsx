@@ -1,5 +1,4 @@
 import { useState } from "react";
-import type { SlotTypeId } from "../api/types";
 import { ago, fmtPoint, slotType, stateLabel, stateTextClass } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 import { CameraMedia } from "./CameraMedia";
@@ -15,9 +14,8 @@ import { useCameraImage, useCameraView, useSlotEditing } from "./useCamera";
 export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startEditing: boolean; onClose: () => void }) {
   const { cfg, changes, save, revert, saveError } = useCfg();
   const [editingMode, setEditingMode] = useState(startEditing);
-  const [newType, setNewType] = useState<SlotTypeId>("normal");
   const [showDets, setShowDets] = useState(false);
-  const editing = useSlotEditing(ip, newType);
+  const editing = useSlotEditing(ip);
   const cam = cfg.cameras.find((c) => c.ip === ip);
   const view = useCameraView(cam);
   const img = useCameraImage(cam);
@@ -48,7 +46,7 @@ export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startE
 
       {editingMode ? (
         <div className="dialog__editor">
-          <LineEditor cam={cam} editing={editing} newType={newType} setNewType={setNewType} />
+          <LineEditor cam={cam} editing={editing} />
         </div>
       ) : (
         <CameraMedia

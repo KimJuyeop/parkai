@@ -47,19 +47,6 @@ export function SlotChip({ no, state, type, title }: { no: number; state: SlotSt
   );
 }
 
-export function TypeSegment({ value, onPick, label }: { value: SlotTypeId; onPick: (t: SlotTypeId) => void; label: string }) {
-  return (
-    <div className="seg" role="group" aria-label={label}>
-      {SLOT_TYPES.map((t) => (
-        <button key={t.id} type="button" className="seg__btn" aria-pressed={t.id === value} onClick={() => onPick(t.id)}>
-          <span className="type-bar" style={{ background: t.color }} />
-          {t.name}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export function TypePicker({ value, onPick, label, columns = 4 }: {
   value: SlotTypeId; onPick: (t: SlotTypeId) => void; label: string; columns?: 2 | 4;
 }) {

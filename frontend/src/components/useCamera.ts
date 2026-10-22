@@ -49,10 +49,13 @@ function findCam(d: AppConfig, ip: string) {
 }
 
 /** 칸 선분 편집: 추가·끝점 이동·종류 변경·삭제 (모두 저장 전 설정에 반영) */
-export function useSlotEditing(ip: string | undefined, newType: SlotTypeId) {
+export function useSlotEditing(ip: string | undefined) {
   const { cfg, edit, editQuiet, countChange, toast } = useCfg();
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
+  // 새 선은 마지막으로 고른 종류로 긋는다 (종류는 칸을 선택해 옆 패널에서 바꾼다).
+  // 같은 종류 칸을 연달아 그을 때 매번 바꾸지 않아도 된다.
+  const [newType, setNewType] = useState<SlotTypeId>("normal");
   const cam = ip ? cfg.cameras.find((c) => c.ip === ip) : undefined;
 
   const setType = useCallback((no: number, t: SlotTypeId) => {
@@ -61,6 +64,7 @@ export function useSlotEditing(ip: string | undefined, newType: SlotTypeId) {
       const s = findCam(d, ip)?.slots.find((x) => x.no === no);
       if (s) s.type = t;
     }, `${no}번 칸 → ${slotType(t).name}`);
+    setNewType(t);
   }, [ip, edit]);
 
   const remove = useCallback((no: number) => {

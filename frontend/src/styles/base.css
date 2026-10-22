@@ -66,13 +66,7 @@ h1, h2, h3 { margin: 0; }
 .form-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .span-2 { grid-column: span 2; }
 
-/* 세그먼트 (종류 고르기 등) */
-.seg { display: inline-flex; padding: var(--sp-half); gap: var(--sp-half); border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--line); flex-wrap: wrap; }
-.seg__btn {
-  display: inline-flex; align-items: center; gap: var(--sp-1-5); min-height: 30px; padding: 0 var(--sp-2-5);
-  border-radius: var(--radius-sm); border: none; background: transparent; color: var(--muted); font-size: var(--fs-control); font-weight: 500;
-}
-.seg__btn[aria-pressed="true"], .seg__btn[aria-checked="true"] { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
+/* 주차 종류 색 막대 */
 .type-bar { width: 14px; height: 4px; border-radius: 2px; flex: none; }
 
 /* 카드·패널 */

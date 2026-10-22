@@ -1,9 +1,8 @@
 import { useState } from "react";
-import type { Camera, SlotTypeId } from "../api/types";
+import type { Camera } from "../api/types";
 import { MAX_SLOTS, SLOT_TYPES } from "../lib/domain";
 import { CameraMedia, type ColorMode } from "./CameraMedia";
 import { Icon } from "./Icon";
-import { TypeSegment } from "./ui";
 import { useCameraImage, useCameraView, type useSlotEditing } from "./useCamera";
 
 type Editing = ReturnType<typeof useSlotEditing>;
@@ -12,8 +11,8 @@ type Editing = ReturnType<typeof useSlotEditing>;
  * 선 편집기: 도구 줄 + 영상 + 안내. 모니터링 큰 창과 카메라 설정이 같이 쓴다.
  * 편집 상태(선택한 칸, 추가 중)는 부모가 useSlotEditing 으로 들고 있다.
  */
-export function LineEditor({ cam, editing, newType, setNewType, allowStateColor = true }: {
-  cam: Camera; editing: Editing; newType: SlotTypeId; setNewType: (t: SlotTypeId) => void; allowStateColor?: boolean;
+export function LineEditor({ cam, editing, allowStateColor = true }: {
+  cam: Camera; editing: Editing; allowStateColor?: boolean;
 }) {
   const view = useCameraView(cam)!;
   const img = useCameraImage(cam);
@@ -30,13 +29,7 @@ export function LineEditor({ cam, editing, newType, setNewType, allowStateColor 
           <Icon name="plus" />
           {editing.adding ? "추가 취소" : editing.full ? `최대 ${MAX_SLOTS}칸` : "선 추가"}
         </button>
-        {editing.adding ? (
-          <>
-            {/* 선 추가 중에만 그을 선의 종류를 고른다. 이미 있는 칸의 종류는 칸을 선택해 옆 패널에서 바꾼다 */}
-            <span className="meta text-accent strong">새 선 종류</span>
-            <TypeSegment value={newType} onPick={setNewType} label="새 선 종류" />
-          </>
-        ) : mode === "state" ? (
+        {mode === "state" ? (
           <div className="legend" aria-label="선 색 범례">
             <span className="legend__item"><span className="legend__swatch legend__swatch--occ" />차량 있음</span>
             <span className="legend__item"><span className="legend__swatch legend__swatch--free" />빈칸</span>
@@ -66,7 +59,7 @@ export function LineEditor({ cam, editing, newType, setNewType, allowStateColor 
         edit={editing.handlers} label={`${cam.ip} 스냅샷과 칸 선분`}
       />
       <div className="editor-hint">
-        선 추가 → 두 점 클릭 · 흰 점을 끌어 위치 수정 · 선이나 번호를 눌러 선택 · Delete 로 삭제 · 최대 {MAX_SLOTS}칸 (현재 {cam.slots.length}칸)
+        선 추가 → 두 점 클릭 · 흰 점을 끌어 위치 수정 · 선이나 번호를 눌러 선택 후 옆에서 종류 변경 · Delete 로 삭제 · 최대 {MAX_SLOTS}칸 (현재 {cam.slots.length}칸)
       </div>
     </div>
   );
