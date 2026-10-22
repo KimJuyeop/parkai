@@ -38,9 +38,8 @@ def main() -> None:
         print(f"설정 파일 생성: {cfg}")
 
     if not (ROOT / "parkai" / "web" / "static" / "index.html").exists():
-        print(
-            "웹 화면이 아직 빌드되지 않았습니다. 한 번 실행하세요:  cd frontend && npm install && npm run build"
-        )
+        print("웹 화면이 아직 빌드되지 않았습니다. 한 번 실행하세요:")
+        print("  cd frontend && npm install && npm run build")
         print("(화면을 고치는 중이면 frontend 에서 npm run dev → http://localhost:5173)")
 
     env = dict(os.environ, PARKAI_CONFIG=str(cfg), PARKAI_RUN_DIR=str(run), PARKAI_SAMPLES=str(samples))
