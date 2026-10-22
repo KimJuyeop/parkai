@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { SlotTypeId } from "../api/types";
-import { ago, fmtPoint, slotType, stateLabel } from "../lib/domain";
+import { ago, fmtPoint, slotType, stateLabel, stateTextClass } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 import { CameraMedia } from "./CameraMedia";
 import { Icon } from "./Icon";
@@ -28,14 +28,14 @@ export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startE
 
   return (
     <Dialog label={`${ip} 카메라`} width={1180} onClose={onClose}>
-      <div className="panel__head" style={{ flexWrap: "wrap", rowGap: 8 }}>
+      <div className="panel__head panel__head--wrap">
         <span className="mono title">{ip}</span>
         <span className="meta">{view.cs?.updated_at ? `${ago(view.cs.updated_at)} 갱신 · ` : ""}{cam.slots.length}칸</span>
         {view.offline && <span className="badge badge--bad">응답 없음</span>}
         {editingMode && <span className="badge badge--accent">선 편집 중</span>}
         <span className="spacer" />
         {!editingMode && (
-          <label className="check" style={{ minHeight: 36, fontSize: "var(--fs-control)" }}>
+          <label className="check check--inline">
             <input type="checkbox" checked={showDets} onChange={(e) => setShowDets(e.target.checked)} />
             검출 박스
           </label>
@@ -47,7 +47,7 @@ export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startE
       </div>
 
       {editingMode ? (
-        <div style={{ padding: "12px 12px 0" }}>
+        <div className="dialog__editor">
           <LineEditor cam={cam} editing={editing} newType={newType} setNewType={setNewType} />
         </div>
       ) : (
@@ -59,24 +59,24 @@ export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startE
         />
       )}
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "16px 24px", padding: "14px 18px" }}>
-        <div style={{ flex: "999 1 420px", minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className="dialog__info">
+        <div className="dialog__slots stack">
           <span className="meta">칸 {cam.slots.length}개 · 누르면 영상에서 강조</span>
           <div className="chips">
             {cam.slots.map((s) => (
               <button key={s.no} type="button" className="slot-btn" aria-pressed={s.no === selNo} onClick={() => editing.setSelected(s.no)}>
                 <SlotChip no={s.no} state={view.states(s.no)} type={s.type} />
-                <span className="type-bar" style={{ background: slotType(s.type).color, width: 12 }} />
+                <span className="type-bar" style={{ background: slotType(s.type).color }} />
                 {slotType(s.type).name}
               </button>
             ))}
           </div>
         </div>
         {sel && (
-          <div style={{ flex: "1 1 300px", display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div className="dialog__sel stack gap-2-5">
+            <div className="row row--between">
               <span className="section-title">{sel.no}번 칸</span>
-              <span style={{ fontWeight: 600, fontSize: "var(--fs-control)", color: selState === true ? "var(--occ)" : selState === false ? "var(--free)" : "var(--muted)" }}>
+              <span className={`strong fs-control ${stateTextClass(selState)}`}>
                 {stateLabel(selState)}
               </span>
             </div>
@@ -90,7 +90,7 @@ export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startE
                 <span className="meta">· 바꾸려면 선 편집</span>
               </div>
             )}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="row">
               <span className="mono meta spacer">{fmtPoint(sel.line[0])} → {fmtPoint(sel.line[1])}</span>
               {editingMode && (
                 <button type="button" className="btn btn--danger" onClick={() => editing.remove(sel.no)}>
@@ -103,10 +103,10 @@ export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startE
       </div>
 
       {changes > 0 && (
-        <div className="dialog__foot" style={{ justifyContent: "flex-start", alignItems: "center", background: "var(--surface-2)" }}>
-          <span className="dot" style={{ background: "var(--occ)" }} />
-          <span style={{ fontWeight: 600, fontSize: "var(--fs-control)" }}>저장하지 않은 변경 {changes}건</span>
-          {saveError && <span className="meta" style={{ color: "var(--bad)", whiteSpace: "pre-line" }}>{saveError}</span>}
+        <div className="dialog__foot dialog__foot--changes">
+          <span className="dot dot--occ" />
+          <span className="strong fs-control">저장하지 않은 변경 {changes}건</span>
+          {saveError && <span className="meta text-bad pre-line">{saveError}</span>}
           <span className="spacer" />
           <button type="button" className="btn" onClick={revert}>되돌리기</button>
           <button type="button" className="btn btn--primary" onClick={async () => { if (await save()) setEditingMode(false); }}>저장</button>

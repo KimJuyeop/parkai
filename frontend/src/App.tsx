@@ -68,7 +68,7 @@ function SaveBar() {
   return (
     <div className="savebar" role="status">
       <span className="savebar__dot" />
-      <strong style={{ fontWeight: 600 }}>저장하지 않은 변경 {changes}건</strong>
+      <strong className="strong">저장하지 않은 변경 {changes}건</strong>
       {lastChange && <span className="savebar__note">마지막: {lastChange}</span>}
       {saveError && <span className="savebar__error">{saveError}</span>}
       <span className="spacer" />

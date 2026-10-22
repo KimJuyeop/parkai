@@ -54,9 +54,9 @@ export function MonitorPage({ panelOpen, setPanelOpen, onGoSettings, onGoCamera 
           </div>
           <span className="spacer" />
           <div className="legend">
-            <span className="legend__item"><span className="legend__swatch" style={{ background: "var(--occ)" }} />차량 있음</span>
-            <span className="legend__item"><span className="legend__swatch" style={{ background: "var(--free-soft)", border: "1.5px solid var(--free)" }} />빈칸</span>
-            <span className="legend__item"><span className="legend__swatch" style={{ border: "1.5px dashed var(--unj)" }} />판정 없음</span>
+            <span className="legend__item"><span className="legend__swatch legend__swatch--occ" />차량 있음</span>
+            <span className="legend__item"><span className="legend__swatch legend__swatch--free" />빈칸</span>
+            <span className="legend__item"><span className="legend__swatch legend__swatch--unj" />판정 없음</span>
           </div>
         </div>
 
@@ -110,8 +110,8 @@ function QuickSettings({ onClose, onGoSettings }: { onClose: () => void; onGoSet
           {open === s.id && <div className="acc__body">{s.body}</div>}
         </div>
       ))}
-      <div style={{ padding: "14px 16px" }}>
-        <button type="button" className="btn btn--ghost" style={{ paddingLeft: 0 }} onClick={onGoSettings}>
+      <div className="quick__foot">
+        <button type="button" className="btn btn--ghost btn--flush" onClick={onGoSettings}>
           카메라 프로필 · 설정 파일은 시스템 설정에서<Icon name="chevronRight" size={14} />
         </button>
       </div>

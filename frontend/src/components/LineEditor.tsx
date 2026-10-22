@@ -23,7 +23,7 @@ export function LineEditor({ cam, editing, newType, setNewType, allowStateColor 
     : !img.src ? (img.error ?? "영상을 불러오는 중…") : null;
 
   return (
-    <div className="panel" style={{ overflow: "hidden" }}>
+    <div className="panel panel--clip">
       <div className="editor-bar">
         <button type="button" className={`btn ${editing.adding ? "btn--on" : ""}`} aria-pressed={editing.adding}
           disabled={editing.full && !editing.adding} onClick={editing.toggleAdd}>
@@ -34,7 +34,7 @@ export function LineEditor({ cam, editing, newType, setNewType, allowStateColor 
         <TypeSegment value={newType} onPick={setNewType} label="새 선 종류" />
         <span className="spacer" />
         {allowStateColor && (
-          <label className="check" style={{ minHeight: 36, justifyContent: "flex-start", fontSize: "var(--fs-control)" }}>
+          <label className="check check--inline">
             <input type="checkbox" checked={stateColor} onChange={(e) => setStateColor(e.target.checked)} />
             판정 결과로 색 표시
           </label>

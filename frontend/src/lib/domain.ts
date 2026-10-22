@@ -74,6 +74,8 @@ export function slotState(cs: CameraStatus | undefined, no: number): SlotState {
 }
 
 export const stateLabel = (s: SlotState) => (s === true ? "차량 있음" : s === false ? "빈칸" : "판정 없음");
+/** 판정 결과 글자 색 클래스 */
+export const stateTextClass = (s: SlotState) => (s === true ? "text-occ" : s === false ? "text-free" : "muted");
 
 export function ago(iso?: string): string {
   if (!iso) return "";

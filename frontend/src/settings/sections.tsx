@@ -69,16 +69,16 @@ export function ServerFields({ compact }: P) {
           </Field>
         )}
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+      <div className="row row--wrap gap-2-5">
         <button type="button" className="btn" onClick={test} disabled={busy}>{busy ? "보내는 중…" : "전송 테스트"}</button>
         {result && (
-          <span className="meta" style={{ color: ok ? "var(--free)" : "var(--bad)" }}>
+          <span className={`meta ${ok ? "text-free" : "text-bad"}`}>
             {result.error ? `실패: ${result.error}` : `응답 ${result.status_code}`}
           </span>
         )}
       </div>
       {result && !compact && (
-        <pre className="mono" style={{ margin: 0, padding: 10, borderRadius: 8, background: "var(--surface-2)", fontSize: 12, maxHeight: 200, overflow: "auto", whiteSpace: "pre-wrap" }}>
+        <pre className="result-box mono">
           {result.body ? `${result.body}\n\n` : ""}보낸 내용:{"\n"}{JSON.stringify(result.payload, null, 2)}
         </pre>
       )}
@@ -92,12 +92,12 @@ export function JudgeFields({ compact }: P) {
   const car = det.classes.car ?? { enabled: true, conf: 0.45 };
   return (
     <>
-      <div role="radiogroup" aria-label="판정 방식" style={{ display: "grid", gap: 6, gridTemplateColumns: compact ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))" }}>
+      <div role="radiogroup" aria-label="판정 방식" className={`preset-grid${compact ? " preset-grid--1" : ""}`}>
         {PRESETS.map((p) => (
           <button key={p.id} type="button" role="radio" aria-checked={det.preset === p.id} className="preset"
             onClick={() => det.preset !== p.id && edit((d) => { d.detection.preset = p.id as Preset; }, `판정 방식 → ${p.name}`)}>
             <span className="preset__radio" />
-            <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span className="stack gap-half">
               <span className="preset__name">{p.name}</span>
               <span className="meta">{p.desc}</span>
               {!compact && <span className="meta mono">{p.tag}</span>}
@@ -106,7 +106,7 @@ export function JudgeFields({ compact }: P) {
         ))}
       </div>
       {det.preset === "custom" && !compact && (
-        <div className="form-grid" style={{ padding: 14, borderRadius: 10, background: "var(--surface-2)" }}>
+        <div className="form-grid soft-box">
           <Field label="판정">
             <select className="select" value={det.judge.mode}
               onChange={(e) => edit((d) => { d.detection.judge.mode = e.target.value as AppConfig["detection"]["judge"]["mode"]; }, "판정 기준 변경")}>
@@ -148,11 +148,11 @@ export function JudgeFields({ compact }: P) {
 export function LampFields() {
   const { cfg, edit } = useCfg();
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <div className="stack gap-half">
       {cfg.slot_types.map((t) => (
         <div key={t.id} className="lamp-row">
           <span className="lamp-row__name">{t.name}</span>
-          <div role="radiogroup" aria-label={`${t.name} 빈칸 색`} style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          <div role="radiogroup" aria-label={`${t.name} 빈칸 색`} className="row row--wrap gap-1">
             {INDICATOR_COLORS.map((c) => (
               <button key={c.id} type="button" role="radio" aria-checked={t.color_available === c.id} aria-label={c.name} title={c.name}
                 className="swatch" onClick={() => edit((d) => {
@@ -167,8 +167,8 @@ export function LampFields() {
       ))}
       <div className="lamp-row">
         <span className="lamp-row__name">만차</span>
-        <span className="meta" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <span className="swatch__fill" style={{ background: FULL_LAMP.hex, display: "inline-block" }} />{FULL_LAMP.name} (고정)
+        <span className="meta row">
+          <span className="swatch__fill" style={{ background: FULL_LAMP.hex }} />{FULL_LAMP.name} (고정)
         </span>
       </div>
     </div>
@@ -203,16 +203,16 @@ export function ProfilesFields() {
         const used = cfg.cameras.filter((c) => c.profile === name).length;
         const [rw, rh] = p.ref_size;
         return (
-          <div key={name} style={{ border: "1px solid var(--line)", borderRadius: 10, overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--surface-2)", borderBottom: "1px solid var(--line)" }}>
-              <span style={{ fontWeight: 600 }}>{name}</span>
+          <div key={name} className="profile">
+            <div className="profile__head">
+              <span className="strong">{name}</span>
               <span className="meta">카메라 {used}대 사용 중</span>
               <span className="spacer" />
               <button type="button" className="btn btn--danger" disabled={used > 0} title={used ? "사용 중인 프로필은 삭제할 수 없습니다" : undefined}
                 onClick={() => edit((d) => { delete d.camera_profiles[name]; }, `프로필 ${name} 삭제`)}>삭제</button>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 20, padding: 16 }}>
-              <div className="form-grid form-grid--2" style={{ flex: "999 1 360px", minWidth: 0 }}>
+            <div className="profile__body">
+              <div className="form-grid form-grid--2 profile__fields">
                 <Field label="이름"><TextInput value={name} onCommit={(v) => rename(name, v)} /></Field>
                 <Field label="인증">
                   <select className="select" value={p.auth} onChange={(e) => setP(name, (x) => { x.auth = e.target.value as CameraProfile["auth"]; }, "인증 방식 변경")}>
@@ -246,8 +246,8 @@ export function ProfilesFields() {
           </div>
         );
       })}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <input className="input" style={{ maxWidth: 240 }} placeholder="새 프로필 이름" value={newName} onChange={(e) => setNewName(e.target.value)} />
+      <div className="row row--wrap">
+        <input className="input input--name" placeholder="새 프로필 이름" value={newName} onChange={(e) => setNewName(e.target.value)} />
         <button type="button" className="btn btn--soft" onClick={() => {
           const n = newName.trim();
           if (!n || cfg.camera_profiles[n]) return toast("이름을 확인하세요");
@@ -262,10 +262,10 @@ export function ProfilesFields() {
 function ViewsPreview({ profile }: { profile: CameraProfile }) {
   const [rw, rh] = profile.ref_size;
   return (
-    <div style={{ flex: "1 1 200px", display: "flex", flexDirection: "column", gap: 6 }}>
+    <div className="views-preview stack gap-1-5">
       <span className="meta">분석 영역 · {profile.views.length}개</span>
       <svg viewBox={`0 0 ${rw} ${rh}`} role="img" aria-label="기준 해상도 안의 분석 영역"
-        style={{ width: "100%", aspectRatio: `${rw} / ${rh}`, borderRadius: 8, background: "var(--media)" }}>
+        className="views-preview__svg" style={{ aspectRatio: `${rw} / ${rh}` }}>
         {profile.views.map((v, i) => (
           <g key={i}>
             <rect x={v[0]} y={v[1]} width={v[2]} height={v[3]} fill="var(--view-fill)" stroke="var(--view-line)" strokeWidth={rw / 200} />
@@ -295,7 +295,7 @@ export function FileFields() {
     }
   };
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+    <div className="row row--wrap">
       <a className="btn" href={api.exportUrl(false)}>내보내기 (비밀번호 제외)</a>
       <a className="btn" href={api.exportUrl(true)}>내보내기 (비밀번호 포함)</a>
       <span className="spacer" />

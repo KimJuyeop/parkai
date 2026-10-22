@@ -1,8 +1,9 @@
 import { PRESETS, ago, handledHere } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 
-function loadColor(p: number) {
-  return p >= 85 ? "var(--bad)" : p >= 70 ? "var(--warn)" : "var(--accent)";
+/** 사용률 막대 색: 85% 이상 빨강, 70% 이상 노랑 */
+function loadClass(p: number) {
+  return p >= 85 ? " meter__fill--bad" : p >= 70 ? " meter__fill--warn" : "";
 }
 
 /** 모니터링 맨 위 상태 줄: 판정 · CCTV · 사이클 · CPU · 메모리 · 서버 전송 */
@@ -33,19 +34,19 @@ export function StatusStrip() {
       <div className="stat">
         <span className="meta">CCTV</span>
         <span className="stat__value mono">{alive ? mine.length - offline : "-"}<span className="stat__unit">&nbsp;/ {mine.length}대</span></span>
-        <span className="meta" style={{ color: offline ? "var(--bad)" : undefined }}>
+        <span className={`meta${offline ? " text-bad" : ""}`}>
           {!alive ? "판정 정지 중" : offline ? `응답 없음 ${offline}대` : "모두 연결됨"}
         </span>
       </div>
       <div className="stat">
         <span className="meta">사이클</span>
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 8 }}>
+        <div className="row row--between row--end">
           <span className="stat__value mono">
             {alive && status.cycle_sec != null ? status.cycle_sec.toFixed(1) : "-"}<span className="stat__unit">초</span>
           </span>
           <div className="spark" aria-hidden="true">
             {hist.map((v, i) => (
-              <span key={i} className="spark__bar" style={{ height: `${Math.round((v / scale) * 100)}%`, background: i === hist.length - 1 ? "var(--accent)" : undefined }} />
+              <span key={i} className={`spark__bar${i === hist.length - 1 ? " spark__bar--now" : ""}`} style={{ height: `${Math.round((v / scale) * 100)}%` }} />
             ))}
           </div>
         </div>
@@ -55,7 +56,7 @@ export function StatusStrip() {
         <span className="meta">CPU</span>
         <span className="stat__value mono">{cpu ?? "-"}<span className="stat__unit">%</span></span>
         <div className="meter" role="meter" aria-label="CPU 사용률" aria-valuenow={cpu ?? 0} aria-valuemin={0} aria-valuemax={100}>
-          <div className="meter__fill" style={{ width: `${cpu ?? 0}%`, background: loadColor(cpu ?? 0) }} />
+          <div className={`meter__fill${loadClass(cpu ?? 0)}`} style={{ width: `${cpu ?? 0}%` }} />
         </div>
         <span className="meta">{res?.temperature_c != null ? `온도 ${res.temperature_c}°C` : "온도 -"}</span>
       </div>
@@ -63,7 +64,7 @@ export function StatusStrip() {
         <span className="meta">메모리</span>
         <span className="stat__value mono">{mem ? gb(mem.used_mb) : "-"}<span className="stat__unit">&nbsp;/ {mem ? gb(mem.total_mb) : "-"}GB</span></span>
         <div className="meter" role="meter" aria-label="메모리 사용률" aria-valuenow={memPct ?? 0} aria-valuemin={0} aria-valuemax={100}>
-          <div className="meter__fill" style={{ width: `${memPct ?? 0}%`, background: loadColor(memPct ?? 0) }} />
+          <div className={`meter__fill${loadClass(memPct ?? 0)}`} style={{ width: `${memPct ?? 0}%` }} />
         </div>
         <span className="meta">{disk ? `저장공간 ${gb(disk.used_mb)} / ${gb(disk.total_mb)}GB` : "저장공간 -"}</span>
       </div>
@@ -74,7 +75,7 @@ export function StatusStrip() {
         ) : (
           <>
             <span className="stat__value"><span className={`dot ${status.server_error ? "dot--bad" : "dot--ok"}`} />{status.server_error ? "오류" : "정상"}</span>
-            <span className="meta" title={status.server_error ?? undefined} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <span className="meta ellipsis" title={status.server_error ?? undefined}>
               {status.server_error ?? (alive ? `${ago(status.updated_at)} 전송` : "-")}
             </span>
           </>

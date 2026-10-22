@@ -4,7 +4,7 @@ import { Icon } from "../components/Icon";
 import { LineEditor } from "../components/LineEditor";
 import { Check, CloseButton, Dialog, Field, TextInput, TypePicker } from "../components/ui";
 import { useCameraView, useSlotEditing } from "../components/useCamera";
-import { fmtPoint, handledHere, ipRange, slotType, stateLabel } from "../lib/domain";
+import { fmtPoint, handledHere, ipRange, slotType, stateLabel, stateTextClass } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 
 export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string | null; setSelectedIp: (ip: string | null) => void }) {
@@ -28,11 +28,11 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
   return (
     <div className="page">
       <aside className="panel page__list" aria-label="카메라 목록">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 12px 8px 14px" }}>
-          <h2 className="section-title">카메라 <span className="mono muted" style={{ fontWeight: 500 }}>{cams.length}</span></h2>
+        <div className="list-panel__head row row--between">
+          <h2 className="section-title">카메라 <span className="mono muted regular">{cams.length}</span></h2>
           <button type="button" className="btn btn--soft" onClick={() => setAdding(true)}><Icon name="plus" size={14} />추가</button>
         </div>
-        <div style={{ padding: "0 12px 8px" }}>
+        <div className="list-panel__search">
           <input className="input" type="search" aria-label="IP로 찾기" placeholder="IP로 찾기" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         <ul className="cam-list">
@@ -42,7 +42,7 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
             const dot = !here ? "" : st === "no_response" ? "dot--bad" : st ? "dot--ok" : "";
             return (
               <li key={c.ip}>
-                <button type="button" className="cam-item" aria-current={c.ip === ip} onClick={() => setSelectedIp(c.ip)} style={{ opacity: here ? 1 : 0.6 }}>
+                <button type="button" className="cam-item" aria-current={c.ip === ip} onClick={() => setSelectedIp(c.ip)} data-other={!here || undefined}>
                   <span className={`dot ${dot}`} />
                   <span className="cam-item__ip">{c.ip}</span>
                   <span className="meta">{!c.enabled ? "사용 안 함" : `${c.slots.length}칸`}</span>
@@ -63,10 +63,10 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
       ) : (
         <>
           <section className="page__main" aria-label="칸 선분 편집">
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 14px" }}>
-              <h1 className="title mono" style={{ fontWeight: 600 }}>{cam.ip}</h1>
+            <div className="row row--wrap page-title">
+              <h1 className="title mono strong">{cam.ip}</h1>
               {view.offline && <span className="badge badge--bad">응답 없음</span>}
-              {!cam.enabled && <span className="badge" style={{ background: "var(--surface-2)", color: "var(--muted)" }}>사용 안 함</span>}
+              {!cam.enabled && <span className="badge badge--off">사용 안 함</span>}
               <span className="meta">{cfg.camera_profiles[cam.profile]?.ref_size.join("×")} 중 분석 영역 {cfg.camera_profiles[cam.profile]?.views.length ?? 0}개</span>
             </div>
 
@@ -86,11 +86,11 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
                     const st = view.states(s.no);
                     return (
                       <tr key={s.no} aria-selected={editing.selected === s.no}>
-                        <td><button type="button" className="btn btn--ghost mono" style={{ color: "var(--text)", fontWeight: 600 }} aria-label={`${s.no}번 칸 선택`} onClick={() => editing.setSelected(s.no)}>{s.no}</button></td>
+                        <td><button type="button" className="btn btn--ghost mono text-plain strong" aria-label={`${s.no}번 칸 선택`} onClick={() => editing.setSelected(s.no)}>{s.no}</button></td>
                         <td>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                            <span className="type-bar" style={{ background: slotType(s.type).color, width: 16 }} />
-                            <select className="select" style={{ width: "auto", minHeight: 32 }} aria-label={`${s.no}번 칸 주차 종류`} value={s.type}
+                          <span className="row">
+                            <span className="type-bar" style={{ background: slotType(s.type).color }} />
+                            <select className="select select--inline" aria-label={`${s.no}번 칸 주차 종류`} value={s.type}
                               onChange={(e) => editing.setType(s.no, e.target.value as SlotTypeId)}>
                               {cfg.slot_types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                             </select>
@@ -98,9 +98,9 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
                         </td>
                         <td className="mono muted">{fmtPoint(s.line[0])}</td>
                         <td className="mono muted">{fmtPoint(s.line[1])}</td>
-                        <td><span className={`chip${st === true ? " chip--occ" : st === false ? " chip--free" : ""}`} style={{ fontFamily: "var(--font-sans)", fontSize: 12, height: 24, padding: "0 8px" }}>{stateLabel(st)}</span></td>
-                        <td style={{ textAlign: "right" }}>
-                          <button type="button" className="btn btn--icon btn--ghost" style={{ color: "var(--muted)" }} aria-label={`${s.no}번 칸 삭제`} onClick={() => editing.remove(s.no)}>
+                        <td><span className={`chip chip--label${st === true ? " chip--occ" : st === false ? " chip--free" : ""}`}>{stateLabel(st)}</span></td>
+                        <td className="cell-end">
+                          <button type="button" className="btn btn--icon btn--ghost muted" aria-label={`${s.no}번 칸 삭제`} onClick={() => editing.remove(s.no)}>
                             <Icon name="trash" />
                           </button>
                         </td>
@@ -135,7 +135,7 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
                 <Field label="담당 보드"><TextInput value={cam.board ?? ""} placeholder="모든 보드" onCommit={(v) => setCam((c) => { c.board = v.trim() || null; }, "담당 보드 변경")} /></Field>
                 <Field label="컨트롤러 IP"><TextInput mono value={cam.controller_ip ?? ""} placeholder="없음" onCommit={(v) => setCam((c) => { c.controller_ip = v.trim() || null; }, "컨트롤러 IP 변경")} /></Field>
               </div>
-              <div style={{ borderTop: "1px solid var(--line)", paddingTop: 4 }}>
+              <div className="divided">
                 <Check label="판정에 사용" checked={cam.enabled} onChange={(v) => setCam((c) => { c.enabled = v; }, v ? "판정 사용" : "판정 사용 안 함")} />
                 <Check label="개별 계정" sub="끄면 프로필의 공통 계정 사용" checked={cam.own_account} onChange={(v) => setCam((c) => { c.own_account = v; }, "계정 방식 변경")} />
               </div>
@@ -167,17 +167,17 @@ function SelectedSlot({ cam, editing, states }: {
   if (!s) return <div className="panel panel__body"><span className="meta">선이나 번호를 누르면 그 칸을 고칠 수 있습니다</span></div>;
   const st = states(s.no);
   return (
-    <div className="panel panel__body" style={{ borderColor: "var(--accent)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div className="panel panel__body panel--active">
+      <div className="row row--between">
         <h2 className="section-title">선택한 칸</h2>
         <span className="mono section-title">{s.no}번</span>
       </div>
       <Field label="주차 종류">
         <TypePicker columns={2} value={s.type} onPick={(t) => editing.setType(s.no, t)} label="선택한 칸 주차 종류" />
       </Field>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, background: "var(--surface-2)", fontSize: "var(--fs-control)" }}>
+      <div className="row row--between soft-box fs-control">
         <span className="muted">현재 판정</span>
-        <span style={{ fontWeight: 600, color: st === true ? "var(--occ)" : st === false ? "var(--free)" : "var(--muted)" }}>{stateLabel(st)}</span>
+        <span className={`strong ${stateTextClass(st)}`}>{stateLabel(st)}</span>
       </div>
       <button type="button" className="btn btn--danger" onClick={() => editing.remove(s.no)}><Icon name="trash" size={14} />이 칸 삭제</button>
     </div>
@@ -218,7 +218,7 @@ function AddCameraDialog({ onClose, onAdded }: { onClose: () => void; onAdded: (
       {profiles.length === 0 ? (
         <div className="panel__body"><p className="note">먼저 시스템 설정에서 카메라 프로필을 만드세요.</p></div>
       ) : (
-        <div className="panel__body" style={{ padding: "16px 18px" }}>
+        <div className="panel__body">
           <p className="note">한 대만 추가하려면 시작 IP만 입력하세요. 여러 대는 끝 번호(예: 30)나 끝 IP를 입력합니다. 계정은 프로필의 공통 계정을 사용합니다.</p>
           <div className="form-grid form-grid--2">
             <Field label="시작 IP"><input className="input mono" autoFocus value={start} placeholder="192.168.13.26" onChange={(e) => setStart(e.target.value)} /></Field>
@@ -231,17 +231,15 @@ function AddCameraDialog({ onClose, onAdded }: { onClose: () => void; onAdded: (
             </Field>
             <Field label="담당 보드" className="span-2"><input className="input" value={board} placeholder="모든 보드" onChange={(e) => setBoard(e.target.value)} /></Field>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12, borderRadius: 8, background: "var(--surface-2)" }}>
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-              <span style={{ fontWeight: 600, fontSize: "var(--fs-control)" }}>추가될 카메라 <span className="mono" style={{ color: "var(--accent)" }}>{fresh.length}대</span></span>
+          <div className="stack soft-box">
+            <div className="row row--between row--baseline gap-2-5">
+              <span className="strong fs-control">추가될 카메라 <span className="mono text-accent">{fresh.length}대</span></span>
               {ips.length > fresh.length && <span className="meta">이미 있는 {ips.length - fresh.length}대는 건너뜀</span>}
             </div>
-            {r && "error" in r && <span style={{ color: "var(--bad)", fontSize: "var(--fs-control)" }}>{r.error}</span>}
+            {r && "error" in r && <span className="text-bad fs-control">{r.error}</span>}
             <div className="chips">
               {ips.map((x) => (
-                <span key={x} className="mono" style={{ fontSize: 12, padding: "2px 8px", borderRadius: 6,
-                  background: have.has(x) ? "transparent" : "var(--accent-soft)", color: have.has(x) ? "var(--muted)" : "var(--accent)",
-                  textDecoration: have.has(x) ? "line-through" : "none" }}>{x}</span>
+                <span key={x} className={`ip-tag mono${have.has(x) ? " ip-tag--exists" : ""}`}>{x}</span>
               ))}
             </div>
           </div>

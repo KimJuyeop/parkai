@@ -27,7 +27,7 @@ export function TextInput({ value, onCommit, mono, type = "text", placeholder, s
 export function Check({ label, sub, checked, onChange }: { label: string; sub?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="check">
-      <span style={{ display: "flex", flexDirection: "column" }}>
+      <span className="stack gap-0">
         <span>{label}</span>
         {sub && <span className="meta">{sub}</span>}
       </span>
@@ -68,7 +68,7 @@ export function TypePicker({ value, onPick, label, columns = 4 }: {
       {SLOT_TYPES.map((t) => (
         <button key={t.id} type="button" role="radio" aria-checked={t.id === value} className="type-pick__btn"
           onClick={() => t.id !== value && onPick(t.id)}>
-          <span className="type-bar" style={{ background: t.color, width: 16 }} />
+          <span className="type-bar" style={{ background: t.color }} />
           {t.name}
         </button>
       ))}

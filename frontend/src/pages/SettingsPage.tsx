@@ -20,10 +20,10 @@ export function SettingsPage() {
   return (
     <div className="page page--narrow">
       <nav className="toc" aria-label="설정 목차">
-        <h1 className="title" style={{ margin: "0 0 10px 10px" }}>시스템 설정</h1>
+        <h1 className="title toc__title">시스템 설정</h1>
         {SECTIONS.map((s) => <a key={s.id} className="toc__link" href={`#set-${s.id}`}>{s.title}</a>)}
         {system && (
-          <div className="meta" style={{ padding: "16px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
+          <div className="meta stack gap-half toc__info">
             <span className="mono">v{system.version}</span>
             <span>{system.board_model}</span>
             <span className="mono">{system.board_ip}</span>
@@ -35,7 +35,7 @@ export function SettingsPage() {
           <section key={s.id} id={`set-${s.id}`} className="panel section">
             <div>
               <h2 className="section-title">{s.title}</h2>
-              <p className="note" style={{ marginTop: 4 }}>{s.note}</p>
+              <p className="note section__note">{s.note}</p>
             </div>
             {BODY[s.id]}
           </section>
