@@ -78,3 +78,27 @@ def test_black_screen_not_judged(tmp_path: Path):
     w.sender.stop()
     assert st["cameras"]["192.168.13.21"]["status"] == "black"
     assert st["cameras"]["192.168.13.21"]["states"] == {}
+
+
+def test_replay_falls_back_to_camera_without_samples(tmp_path: Path):
+    """재생 모드여도 샘플 폴더가 없는 카메라는 실제 카메라(HTTP)에서 받는다."""
+    from parkai.worker.sources import HttpSnapshotSource, ReplaySource
+
+    cfg_path = tmp_path / "config.json"
+    shutil.copy("examples/config.example.json", cfg_path)
+    cam_dir = tmp_path / "replay" / "192.168.13.21"
+    cam_dir.mkdir(parents=True)
+    cv2.imwrite(str(cam_dir / "0001.jpg"), make_frame())
+
+    w = Worker(
+        cfg_path,
+        load_detector("fixture", None),
+        tmp_path / "run",
+        tmp_path / "data",
+        replay_dir=tmp_path / "replay",
+    )
+    cam = w.cfg.cameras[0]
+    assert isinstance(w._make_source(cam), ReplaySource)
+    other = cam.model_copy(update={"ip": "192.168.13.99"})
+    assert isinstance(w._make_source(other), HttpSnapshotSource)
+    w.sender.stop()

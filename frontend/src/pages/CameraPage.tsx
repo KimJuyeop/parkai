@@ -17,6 +17,8 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
   const cam = cams.find((c) => c.ip === ip);
   const editing = useSlotEditing(ip ?? undefined, newType);
   const view = useCameraView(cam);
+  // 카메라 설정 화면에서만 실패 원인을 보여준다 (모니터링은 정상/응답 없음만)
+  const camError = cam && alive ? status.cameras[cam.ip]?.error : null;
   const list = cams.filter((c) => c.ip.includes(query.trim()));
 
   const { setSelected } = editing;
@@ -69,6 +71,7 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
               {!cam.enabled && <span className="badge badge--off">사용 안 함</span>}
               <span className="meta">{cfg.camera_profiles[cam.profile]?.ref_size.join("×")} 중 분석 영역 {cfg.camera_profiles[cam.profile]?.views.length ?? 0}개</span>
             </div>
+            {camError && <p className="meta text-bad pre-line">카메라에서 영상을 받지 못했습니다: {camError}</p>}
 
             <LineEditor cam={cam} editing={editing} newType={newType} setNewType={setNewType} />
 

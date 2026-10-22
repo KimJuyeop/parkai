@@ -104,7 +104,10 @@ class Worker:
 
     def _make_source(self, cam: Camera):
         if self.replay_dir is not None:
-            return ReplaySource(self.replay_dir / cam.ip)
+            replay = ReplaySource(self.replay_dir / cam.ip)
+            if replay.files:
+                return replay
+            # 샘플이 없는 카메라는 실제 카메라에서 받는다 (재생과 실제 카메라를 섞어 쓸 수 있게)
         rt = self.cfg.runtime
         profile = self.cfg.camera_profiles[cam.profile]
         try:
