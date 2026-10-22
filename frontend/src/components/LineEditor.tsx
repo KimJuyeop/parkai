@@ -19,6 +19,14 @@ export function LineEditor({ cam, editing, newType, setNewType, allowStateColor 
   const img = useCameraImage(cam);
   const [stateColor, setStateColor] = useState(false);
   const mode: ColorMode = stateColor ? "state" : "type";
+  // 종류 고르기: 선을 고른 상태면 그 칸의 종류를 바꾸고, 아니면 다음에 그을 선의 종류를 정한다.
+  // 고른 종류는 다음 새 선에도 이어 쓴다 (같은 종류 칸을 연달아 긋기 편하게).
+  const sel = !editing.adding && editing.selected != null ? cam.slots.find((s) => s.no === editing.selected) : undefined;
+  const typeLabel = sel ? `${sel.no}번 칸 종류` : "새 선 종류";
+  const pickType = (t: SlotTypeId) => {
+    if (sel) editing.setType(sel.no, t);
+    setNewType(t);
+  };
   const msg = cam.slots.length === 0 && !editing.adding ? "아직 칸이 없습니다 · 선 추가로 시작하세요"
     : !img.src ? (img.error ?? "영상을 불러오는 중…") : null;
 
@@ -30,8 +38,8 @@ export function LineEditor({ cam, editing, newType, setNewType, allowStateColor 
           <Icon name="plus" />
           {editing.adding ? "추가 취소" : editing.full ? `최대 ${MAX_SLOTS}칸` : "선 추가"}
         </button>
-        <span className="meta">새 선 종류</span>
-        <TypeSegment value={newType} onPick={setNewType} label="새 선 종류" />
+        <span className={`meta${sel ? " text-accent strong" : ""}`}>{typeLabel}</span>
+        <TypeSegment value={sel ? sel.type : newType} onPick={pickType} label={typeLabel} />
         <span className="spacer" />
         {allowStateColor && (
           <label className="check check--inline">
@@ -49,7 +57,7 @@ export function LineEditor({ cam, editing, newType, setNewType, allowStateColor 
         edit={editing.handlers} label={`${cam.ip} 스냅샷과 칸 선분`}
       />
       <div className="editor-hint">
-        선 추가 → 두 점 클릭 · 흰 점을 끌어 위치 수정 · 선이나 번호를 눌러 선택 · Delete 로 삭제 · 카메라당 최대 {MAX_SLOTS}칸 (현재 {cam.slots.length}칸)
+        선 추가 → 두 점 클릭 · 흰 점을 끌어 위치 수정 · 선이나 번호를 눌러 선택 후 종류 변경 · Delete 로 삭제 · 최대 {MAX_SLOTS}칸 (현재 {cam.slots.length}칸)
       </div>
     </div>
   );
