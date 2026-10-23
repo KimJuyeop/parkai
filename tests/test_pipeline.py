@@ -40,6 +40,11 @@ def test_one_cycle(tmp_path: Path):
 
     cam = st["cameras"]["192.168.13.21"]
     assert cam["status"] == "ok"
+    # 시각에는 시간대가 붙어야 한다 (보드는 UTC, 브라우저는 KST라 없으면 9시간 차이로 '워커 정지'로 보임)
+    from datetime import datetime
+
+    assert datetime.fromisoformat(st["updated_at"]).tzinfo is not None
+    assert datetime.fromisoformat(cam["updated_at"]).tzinfo is not None
     assert cam["states"] == {"1": True, "2": False, "3": False, "4": False, "5": False}
     assert (tmp_path / "run" / "status.json").exists()
     # 웹 화면이 직접 그릴 수 있도록 검출 박스 좌표(기준 해상도)를 함께 전달

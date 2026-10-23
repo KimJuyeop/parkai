@@ -50,6 +50,11 @@ class Prepared:
     error: str | None = None
 
 
+def _now_iso() -> str:
+    """시간대를 붙인 현재 시각. 보드(UTC)와 브라우저(KST)의 시간대가 달라도 같은 시점으로 읽힌다."""
+    return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
 class CameraRuntime:
     def __init__(self, cam: Camera, source, stable_count: int):
         self.cam = cam
@@ -210,7 +215,7 @@ class Worker:
             "status": p.status,
             "timings": p.timings,
             "error": p.error,
-            "updated_at": datetime.now().isoformat(timespec="seconds"),
+            "updated_at": _now_iso(),
         }
         if p.status not in ("ok", "partial"):
             info["states"] = {str(k): v for k, v in rt.states.items()}
@@ -341,7 +346,7 @@ class Worker:
             "device_id": self.device_id,
             "cycle": cycle_no,
             "cycle_sec": round(elapsed, 3),
-            "updated_at": datetime.now().isoformat(timespec="seconds"),
+            "updated_at": _now_iso(),
             "server_error": self.sender.last_error,
             "cameras": cameras,
         }
