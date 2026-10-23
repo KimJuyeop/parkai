@@ -16,7 +16,7 @@
 | 보드 OS | Starter package (OpenSTLinux 6.6) + X-LINUX-AI (apt) |
 | 크로스컴파일 SDK | 사용 안 함 (Python). C++ 전환 시에만 |
 | Yocto 빌드 | 양산 골든 이미지 단계에서 |
-| 모델 학습 | STM32 AI Model Zoo (PC, GPU) |
+| 모델 | ST 사전학습 모델 그대로 (STM32 AI Model Zoo, COCO의 car/truck/bus). 재학습은 정확도가 부족할 때만 |
 | 모델 변환 | ST Edge AI Core → NBG (`.nb`) |
 | 보드 추론 | X-LINUX-AI `stai_mpu` Python API |
 | 언어 | Python 3.12 (보드와 동일) |
@@ -75,7 +75,7 @@
 - **판정 프리셋**
   - `legacy`: 선분이 박스에 닿으면 점유, 매 사이클 그대로 (기존 Jetson과 동일) ← 기본값
   - `standard`: 덮임 비율(0.6) + 한 박스가 여러 칸에 걸치면 가장 잘 맞는 칸에 배정, 연속 2회 일치
-- **모델**: st_yoloxn 우선 (기존 darknet 데이터로 재학습). yolov11n과 비교 후 확정.
+- **모델**: ST가 제공하는 사전학습 객체 검출 모델을 학습 없이 그대로 쓴다 (car/truck/bus 클래스). 현장 정확도가 부족하면 그때 기존 darknet 데이터로 재학습을 검토한다.
 - **출력**: 매 사이클 서버 전송, 최신 이미지는 RAM, 기록 이미지는 상태 변경 시 + 5분마다.
 
 **보정 필요 (현장 데이터로)**: 화면 이상 기준값, 신뢰도 임계값, 판정 기준, N.
@@ -129,4 +129,19 @@ API는 `/api/v1` 아래 REST. 화면은 React + TypeScript(`frontend/`)이고, P
 - 주차 종류별 만공등 색
 - 카메라 기종별 스냅샷 URL/인증
 - X-LINUX-AI / ST Edge AI Core 정확한 버전
+- X-LINUX-AI 6.2용 apt 저장소 주소 (아래 '보드 준비' 참고)
 - 사내 배포 서버
+
+## 보드 준비 (평가보드에서 확인한 것)
+
+OpenSTLinux 6.6 (scarthgap, `mpu-v26.06.10`), 저장소 `packages.openstlinux.st.com/6.2.1`, Python 3.12.12.
+
+- 기본 이미지에는 OpenCV·pip·Python 표준 모듈 일부가 없다. 아래로 설치:
+  `apt-get install python3-opencv python3-pip python3-requests python3-pydantic python3-modules`
+  - `python3-modules`가 없으면 pydantic이 `zoneinfo`를 못 찾는다 (Yocto는 표준 모듈을 패키지별로 쪼갬).
+  - FastAPI·uvicorn은 저장소에 없어 pip로 설치 (`--break-system-packages` 필요할 수 있음).
+- NPU 드라이버(`galcore`, `/dev/galcore`)는 기본으로 올라와 있다. OpenVX·`stai_mpu`는 X-LINUX-AI 설치가 필요.
+- X-LINUX-AI 저장소 설정이 이미지에 없다. `extra.packages.openstlinux.st.com/AI/6.0`은 있으나
+  6.0.0 데모 패키지뿐이고 `stai-mpu-ovx`·`python3-stai-mpu`가 없어 설치되지 않는다. 6.2용 주소는 ST 위키에서 확인 필요.
+- 보드 시계는 UTC. 화면과 주고받는 시각은 항상 시간대를 붙인다.
+- 카메라 1대 기준 사이클(수신·판정·기록, 검출 제외) 약 0.1초, CPU 3%.
