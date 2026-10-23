@@ -25,7 +25,7 @@ if ! command -v python3.12 >/dev/null; then
   sudo apt-get update
   sudo apt-get install -y python3.12 python3.12-venv python3.12-dev
 fi
-sudo apt-get install -y git git-lfs libgl1 libglib2.0-0
+sudo apt-get install -y build-essential git git-lfs libgl1 libglib2.0-0   # build-essential: pesq·pycocotools 컴파일
 
 echo "[3/5] ST Model Zoo services ($ZOO_COMMIT)"
 mkdir -p "$BASE"
