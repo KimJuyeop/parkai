@@ -37,6 +37,12 @@ def test_letterbox_roundtrip():
     assert (b.x1, b.y1, b.x2, b.y2) == pytest.approx((0, 0, 640, 480))
 
 
+def test_stretch_roundtrip():
+    lb = Letterbox.stretch(640, 480, 480, 480)
+    b = lb.to_source(Box(0, 0, 480, 480))
+    assert (b.x1, b.y1, b.x2, b.y2) == pytest.approx((0, 0, 640, 480))
+
+
 # ---------- judge ----------
 
 

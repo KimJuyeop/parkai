@@ -33,9 +33,14 @@ class Box:
 
 @dataclass(frozen=True)
 class Letterbox:
-    """원본(w, h)을 비율 유지로 모델 입력(in_w, in_h)에 맞추는 변환."""
+    """원본(w, h)을 모델 입력(in_w, in_h)에 맞추는 변환.
 
-    scale: float
+    compute: 비율 유지 + 여백 (레터박스)
+    stretch: 비율 무시하고 꽉 채움 (ST Model Zoo의 aspect_ratio: fit)
+    """
+
+    scale_x: float
+    scale_y: float
     pad_x: float
     pad_y: float
     new_w: int
@@ -45,16 +50,19 @@ class Letterbox:
     def compute(cls, w: int, h: int, in_w: int, in_h: int) -> Letterbox:
         scale = min(in_w / w, in_h / h)
         new_w, new_h = round(w * scale), round(h * scale)
-        return cls(scale, (in_w - new_w) / 2, (in_h - new_h) / 2, new_w, new_h)
+        return cls(scale, scale, (in_w - new_w) / 2, (in_h - new_h) / 2, new_w, new_h)
+
+    @classmethod
+    def stretch(cls, w: int, h: int, in_w: int, in_h: int) -> Letterbox:
+        return cls(in_w / w, in_h / h, 0.0, 0.0, in_w, in_h)
 
     def to_source(self, b: Box) -> Box:
         """모델 입력 좌표 -> 원본 좌표."""
-        s = self.scale
         return Box(
-            (b.x1 - self.pad_x) / s,
-            (b.y1 - self.pad_y) / s,
-            (b.x2 - self.pad_x) / s,
-            (b.y2 - self.pad_y) / s,
+            (b.x1 - self.pad_x) / self.scale_x,
+            (b.y1 - self.pad_y) / self.scale_y,
+            (b.x2 - self.pad_x) / self.scale_x,
+            (b.y2 - self.pad_y) / self.scale_y,
             b.score,
             b.cls,
         )

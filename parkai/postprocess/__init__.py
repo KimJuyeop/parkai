@@ -22,7 +22,7 @@ def register(arch: str):
 
 
 def get_postprocessor(arch: str) -> PostFn:
-    from . import yolox  # noqa: F401  (등록)
+    from . import st_yoloxn, yolox  # noqa: F401  (등록)
 
     if arch not in _REGISTRY:
         raise ValueError(f"지원하지 않는 모델 구조: {arch} (지원: {sorted(_REGISTRY)})")

@@ -4,7 +4,7 @@
     models/<name>/
         model.nb     보드 NPU용
         model.onnx   PC용 (같은 모델)
-        model.json   {"arch": "yolox", "input_size": [416, 416], "classes": ["car"], ...}
+        model.json   {"arch": "st_yoloxn", "input_size": [480, 480], "classes": [...], ...}
 """
 
 from __future__ import annotations
@@ -66,13 +66,21 @@ class ModelDetector(Detector):
     def _run(self, tensor: np.ndarray) -> list[np.ndarray]: ...
 
     def preprocess(self, image_bgr: np.ndarray) -> tuple[np.ndarray, Letterbox]:
+        """model.json 옵션
+        resize: letterbox(기본) | fit(비율 무시)    interpolation: linear(기본) | nearest
+        """
         in_w, in_h = self.pkg.input_size
         h, w = image_bgr.shape[:2]
-        lb = Letterbox.compute(w, h, in_w, in_h)
-        resized = cv2.resize(image_bgr, (lb.new_w, lb.new_h), interpolation=cv2.INTER_LINEAR)
-        canvas = np.full((in_h, in_w, 3), 114, dtype=np.uint8)
-        x0, y0 = int(lb.pad_x), int(lb.pad_y)
-        canvas[y0 : y0 + lb.new_h, x0 : x0 + lb.new_w] = resized
+        fit = self.pkg.extra.get("resize", "letterbox") == "fit"
+        lb = (Letterbox.stretch if fit else Letterbox.compute)(w, h, in_w, in_h)
+        interp = cv2.INTER_NEAREST if self.pkg.extra.get("interpolation") == "nearest" else cv2.INTER_LINEAR
+        resized = cv2.resize(image_bgr, (lb.new_w, lb.new_h), interpolation=interp)
+        if fit:
+            canvas = resized
+        else:
+            canvas = np.full((in_h, in_w, 3), 114, dtype=np.uint8)
+            x0, y0 = int(lb.pad_x), int(lb.pad_y)
+            canvas[y0 : y0 + lb.new_h, x0 : x0 + lb.new_w] = resized
         if self.pkg.extra.get("color", "rgb") == "rgb":
             canvas = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
         return canvas, lb
