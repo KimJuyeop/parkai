@@ -1,0 +1,56 @@
+"""자동 라벨링 결과(images/, labels/)를 학습/검증/시험 폴더로 나눈다 (ST Model Zoo darknet_yolo 형식).
+
+    python tools/train/split_dataset.py dataset --out dataset_split
+
+결과: dataset_split/{train,val,test}/ 에 사진(.jpg)과 같은 이름의 라벨(.txt)이 함께 들어간다.
+--by-folder: 같은 현장/카메라 폴더의 사진은 한 쪽에만 넣는다 (거의 같은 장면이 학습과 시험에
+             함께 들어가 점수가 부풀려지는 것을 막는다). 폴더(카메라)가 충분히 많을 때 쓴다.
+"""
+
+from __future__ import annotations
+
+import argparse
+import random
+import shutil
+from collections import defaultdict
+from pathlib import Path
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("src", type=Path, help="autolabel.py 의 --out 폴더")
+    ap.add_argument("--out", type=Path, default=Path("dataset_split"))
+    ap.add_argument("--val", type=float, default=0.1)
+    ap.add_argument("--test", type=float, default=0.1)
+    ap.add_argument("--by-folder", action="store_true")
+    ap.add_argument("--seed", type=int, default=123)
+    args = ap.parse_args()
+
+    images = sorted((args.src / "images").glob("*.jpg"))
+    rng = random.Random(args.seed)
+    # 파일 이름 = <현장>__<하위 폴더...>__<원본 이름>_v<화면>  → 마지막 조각을 뺀 앞부분이 폴더(카메라)
+    groups: dict[str, list[Path]] = defaultdict(list)
+    for p in images:
+        key = p.stem.rsplit("__", 1)[0] if args.by_folder else p.stem
+        groups[key].append(p)
+    keys = sorted(groups)
+    rng.shuffle(keys)
+    n = len(keys)
+    n_test, n_val = round(n * args.test), round(n * args.val)
+    split = {"test": keys[:n_test], "val": keys[n_test : n_test + n_val], "train": keys[n_test + n_val :]}
+
+    for name, ks in split.items():
+        d = args.out / name
+        d.mkdir(parents=True, exist_ok=True)
+        count = 0
+        for k in ks:
+            for img in groups[k]:
+                lbl = args.src / "labels" / f"{img.stem}.txt"
+                shutil.copy2(img, d / img.name)
+                shutil.copy2(lbl, d / lbl.name) if lbl.exists() else (d / lbl.name).write_text("")
+                count += 1
+        print(f"{name}: 화면 {count}개 ({len(ks)} 묶음)")
+
+
+if __name__ == "__main__":
+    main()
