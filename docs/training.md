@@ -55,10 +55,18 @@ WSL 에서 윈도우 폴더는 `/mnt/c/Users/...` 로 보인다 (사진이 많�
 ```sh
 . ~/st_train/venv/bin/activate
 cd ~/st_train/stm32ai-modelzoo-services/object_detection
+# 1) 학습
 python stm32ai_main.py --config-path /path/to/config --config-name st_yoloxn_finetune
+# 2) 평가 → ONNX int8 양자화 → 양자화 모델 평가
+OUT=tf/src/experiments_outputs/$(ls -t tf/src/experiments_outputs | grep -v mlruns | head -1)
+python stm32ai_main.py --config-path /path/to/config --config-name st_yoloxn_finetune \
+  operation_mode=chain_eqe model.model_path=$PWD/$OUT/saved_models/best_model.keras
 ```
 
-결과: `tf/src/experiments_outputs/<날짜>/` 아래 `saved_models/best_model.keras`, `quantized_models/*.onnx`, 평가 점수(mAP).
+두 번에 나누는 이유: Model Zoo 는 학습과 평가를 한 번(chain_tqe)에 돌리면 darknet_yolo 시험 세트를
+변환하지 않아 `test_path 'None'` 오류로 멈춘다.
+
+결과: 1번 폴더의 `saved_models/best_model.keras`, 2번 폴더의 `quantized_models/*.onnx` 와 평가 점수(mAP).
 
 ## 6. 확인 → parkai 모델 패키지
 
