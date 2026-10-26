@@ -42,6 +42,11 @@ python3.12 -m venv "$BASE/venv"
 pip install -q --upgrade pip
 pip install -q -r stm32ai-modelzoo-services/requirements.txt
 pip install -q "tensorflow[and-cuda]==2.18.0"   # 리눅스(WSL)에서 GPU 사용
+# Model Zoo 는 시작할 때 torch 도 불러온다. GPU용 torch 는 TensorFlow 와 CUDA 라이브러리 버전이 맞지 않아
+# 불러오기부터 실패하므로(ncclCommInitRankScalable), st_yoloxn(TensorFlow) 학습에 쓰지 않는 torch 는 CPU판으로 둔다.
+pip install -q --force-reinstall --no-deps "torch==2.7.1" "torchvision==0.22.1" "torchaudio==2.7.1" \
+  --index-url https://download.pytorch.org/whl/cpu
+python -c "import torch; print('torch', torch.__version__, '(CPU)')"
 python - <<'PY'
 import tensorflow as tf
 gpus = tf.config.list_physical_devices("GPU")
