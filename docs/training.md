@@ -58,9 +58,10 @@ cd ~/st_train/stm32ai-modelzoo-services/object_detection
 # 1) 학습
 python stm32ai_main.py --config-path /path/to/config --config-name st_yoloxn_finetune
 # 2) 평가 → ONNX int8 양자화 → 양자화 모델 평가
-OUT=tf/src/experiments_outputs/$(ls -t tf/src/experiments_outputs | grep -v mlruns | head -1)
+# 학습 결과(best_model.keras)가 있는 가장 최근 폴더 (평가 실행도 폴더를 만들어서 단순히 최신 폴더를 고르면 안 된다)
+OUT=$(dirname "$(ls -t tf/src/experiments_outputs/*/saved_models/best_model.keras | head -1)")/..
 python stm32ai_main.py --config-path /path/to/config --config-name st_yoloxn_finetune \
-  operation_mode=chain_eqe model.model_path=$PWD/$OUT/saved_models/best_model.keras
+  operation_mode=chain_eqe model.model_path=$(realpath $OUT)/saved_models/best_model.keras
 ```
 
 두 번에 나누는 이유: Model Zoo 는 학습과 평가를 한 번(chain_tqe)에 돌리면 darknet_yolo 시험 세트를
