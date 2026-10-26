@@ -35,6 +35,9 @@ if [ ! -d stm32ai-modelzoo-services ]; then
 fi
 git -C stm32ai-modelzoo-services fetch -q origin
 git -C stm32ai-modelzoo-services checkout -q "$ZOO_COMMIT"
+# 평가 배치가 64로 고정돼 있어 8GB 노트북 GPU에서 메모리 부족(ResourceExhaustedError)으로 멈춘다 → 8로
+sed -i 's/        val_batch_size = 64$/        val_batch_size = 8   # parkai: 8GB GPU/' \
+  stm32ai-modelzoo-services/object_detection/tf/src/datasets/utils/dataset_loaders.py
 
 echo "[4/5] 가상환경 + 패키지 (몇 GB, 시간이 걸린다)"
 python3.12 -m venv "$BASE/venv"
