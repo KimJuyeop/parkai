@@ -72,8 +72,11 @@ python stm32ai_main.py --config-path /path/to/config --config-name st_yoloxn_fin
 ## 6. 확인 → parkai 모델 패키지
 
 1. 양자화된 `.onnx` 를 `models/st_yoloxn_car_480/model.onnx` 로 복사
-2. `model.json` 은 `models/st_yoloxn_coco80_480/model.json` 을 복사해 `classes` 를 `["car"]`, `class_map` 을 `{}` 로, `source` 를 지운다
-3. 같은 시험 사진으로 YOLOv4 와 비교 (autolabel 미리보기와 나란히)
+2. `model.json` 은 이미 있다 (입력 NCHW float, 출력 3개 NCHW, 1클래스)
+3. 같은 사진으로 YOLOv4 와 비교: `python tools/compare_models.py <사진> --model models/st_yoloxn_car_480 --cfg ... --weights ...`
+
+첫 학습(2026-10-26): 카메라 993대 x 1장, 150회 57분. 시험 198화면 mAP 99.0% (int8 98.3%).
+샘플 12장 비교: YOLOv4 차량 89대 중 88대 찾음, YOLOv4 에 없는 박스 6.4% (학습 전 ST 모델 50.6% / 44.4%).
 
 ## 주의
 

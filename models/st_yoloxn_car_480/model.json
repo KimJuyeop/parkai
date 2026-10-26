@@ -8,7 +8,7 @@
     "car"
   ],
   "color": "rgb",
-  "layout": "nhwc",
+  "layout": "nchw",
   "input_scale": 255.0,
   "resize": "fit",
   "interpolation": "nearest",
@@ -27,5 +27,5 @@
     ]
   ],
   "class_map": {},
-  "note": "ST st_yoloxn(COCO 80) 를 현장 사진(YOLOv4 자동 라벨)으로 추가 학습. ONNX 는 Model Zoo chain_eqe 의 quantized_models/*_quant_qdq_pc.onnx"
+  "note": "ST st_yoloxn(COCO 80)를 현장 사진 993장(YOLOv4 자동 라벨)으로 150회 추가 학습. 시험 198화면 int8 mAP 98.3%. ONNX 입력 NCHW float, 출력 3개 NCHW (Model Zoo chain_eqe 의 *_quant_qdq_pc.onnx)"
 }
