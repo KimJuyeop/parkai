@@ -105,10 +105,12 @@ parkai 후처리로 잰 시험 198화면 (정답 745대, `tools/eval_models.py`,
 | ONNX per-channel | 92.2 / 98.8 | 94.8 / 97.2 |
 | TFLite per-tensor | 63.2 / 98.3 | 87.0 / 96.2 |
 
-per-tensor 의 오검출은 대부분 한 차에 박스가 두 개 겹치거나 차보다 크게 나온 박스다.
+per-tensor 의 오검출은 대부분 한 차에 박스가 두 개 겹치거나 차보다 크게(두 대에 걸쳐) 나온 박스다.
+'차가 없는 곳' 박스(NMS 0.3 에서 33개)는 대부분 YOLOv4 라벨이 놓친 화면 끝 잘린 차·오토바이다.
 원인은 출력 합치기(concat)가 아니라 (per-channel ONNX 도 출력 눈금은 하나로 같다) 가중치 전체를 텐서당 눈금 하나로
-양자화한 것. ST 의 per-tensor 최적화(`+quantization.optimize=true`: BN 접기, 층간 균등화 CLE, 클립)로 줄인다.
-setup_wsl.sh 가 Model Zoo 의 이 기능 버그(model.input 이 list)를 고친다.
+양자화해서 생기는 차량 점수(obj) 흔들림이다 (ONNX 와 비교해 obj 로짓 평균 1.2~1.5 차이, 상자 크기는 0.1~0.2).
+ST 의 per-tensor 최적화(`+quantization.optimize=true`: BN 접기, 층간 균등화 CLE, 클립)는 효과가 없었다
+(Model Zoo 평가 66.0 / 96.0 / 94.9, 2026-10-27). setup_wsl.sh 가 이 기능의 Model Zoo 버그(model.input 이 list)는 고쳐 둔다.
 보드용 .nb 는 입력 NHWC uint8 (PC 용 model.onnx 는 NCHW float) — 백엔드가 .nb 에서 직접 읽는다.
 
 ## 라벨 기준 (Label Studio 로 고칠 때도 같게)
