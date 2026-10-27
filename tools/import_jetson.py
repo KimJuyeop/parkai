@@ -11,7 +11,8 @@ Jetson 파일 형식 (파일 이름 = 카메라 IP):
 - 선분 좌표는 Jetson 스냅샷(1280x960) 기준이라 parkai 카메라 프로필의 기준 크기와 같아야 한다
   (--profile 의 ref_size, 기본 "2분할 카메라" 1280x960 위 절반 두 화면)
 - 칸 번호(number)는 그대로 쓴다 (서버 전송 ps01~ps12 와 맞물림)
-- parking_sector 는 의미를 확인하기 전까지 옮기지 않고 값별 개수만 알려 준다 (주차 종류는 모두 일반)
+- parking_sector(주차 종류): 1 일반, 2 장애인, 4 전기차, 6 경차.
+  3(교통약자)은 parkai 에 아직 없어 일반으로 두고 알려 준다
 - 카메라 계정은 카메라별 계정(own_account)으로 옮긴다. 결과 파일에 비밀번호가 들어가므로 저장소에 넣지 않는다
 """
 
@@ -27,6 +28,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from parkai.core.config import MAX_SLOTS_PER_CAMERA, AppConfig, CameraProfile  # noqa: E402
 
 DEFAULT_PROFILE = "2분할 카메라"
+# Jetson parking_sector → parkai 주차 종류. 3(교통약자)은 parkai 종류가 정해지면 추가
+SECTOR_TYPES = {1: "normal", 2: "disabled", 4: "ev", 6: "compact"}
 
 
 def convert(data: dict, profile: str) -> tuple[dict, Counter]:
@@ -39,7 +42,7 @@ def convert(data: dict, profile: str) -> tuple[dict, Counter]:
             continue
         sectors[li.get("parking_sector")] += 1
         line = [[li["start_x"], li["start_y"]], [li["end_x"], li["end_y"]]]
-        slots.append({"no": no, "type": "normal", "line": line})
+        slots.append({"no": no, "type": SECTOR_TYPES.get(li.get("parking_sector"), "normal"), "line": line})
     ctrl = data.get("controller_ip_address")
     cam = {
         "ip": data["camera_ip_address"],
@@ -87,7 +90,10 @@ def main() -> None:
     args.out.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
     n_slots = sum(len(c["slots"]) for c in cfg["cameras"])
     print(f"카메라 {len(cfg['cameras'])}대, 칸 {n_slots}개 → {args.out}")
-    print(f"parking_sector 값별 칸 수 (옮기지 않음): {dict(sectors)}")
+    print(f"parking_sector 값별 칸 수: {dict(sectors)}")
+    unknown = {k: v for k, v in sectors.items() if k not in SECTOR_TYPES}
+    if unknown:
+        print(f"  parkai 에 없는 종류라 일반으로 둔 칸: {unknown} (3 = 교통약자)")
 
 
 if __name__ == "__main__":
