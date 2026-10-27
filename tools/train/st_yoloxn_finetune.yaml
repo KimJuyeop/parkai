@@ -105,7 +105,7 @@ quantization:
   quantizer: Onnx_quantizer
   quantization_type: PTQ
   target_opset: 21
-  granularity: per_channel
+  granularity: per_tensor        # MP2 NPU 는 8비트 per-tensor 라야 NPU 에서 돈다 (per_channel 은 대부분 GPU 로 넘어감)
   quantization_input_type: uint8
   quantization_output_type: float
   export_dir: quantized_models

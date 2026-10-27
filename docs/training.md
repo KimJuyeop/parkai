@@ -78,6 +78,20 @@ python stm32ai_main.py --config-path /path/to/config --config-name st_yoloxn_fin
 첫 학습(2026-10-26): 카메라 993대 x 1장, 150회 57분. 시험 198화면 mAP 99.0% (int8 98.3%).
 샘플 12장 비교: YOLOv4 차량 89대 중 88대 찾음, YOLOv4 에 없는 박스 6.4% (학습 전 ST 모델 50.6% / 44.4%).
 
+## 7. 보드 NPU 용 변환 (.nb)
+
+ST Edge AI Core 는 MP2 모듈이 있는 2.2.0 을 쓴다 (3.x, 4.x 에는 MP2 모듈이 없다).
+
+```sh
+QT_QPA_PLATFORM=offscreen ./stedgeai-linux-onlineinstaller --root $HOME/ST/STEdgeAI \
+  --accept-licenses --default-answer --confirm-command install stedgeai0202 stedgeai0202.stm32mpu
+$HOME/ST/STEdgeAI/2.2/Utilities/linux/stedgeai generate --model model.onnx --target stm32mp25 --output out
+```
+
+양자화는 반드시 per_tensor. per_channel 로 만든 첫 모델은 보드에서 118ms 였고 계산의 94% 가
+GPU 로 넘어갔다 (benchmark: "Non-Optimal model ... 8-bits per-tensor"). 참고로 ST 의
+SSD MobileNet v2 per-tensor 256 모델은 25.8ms, NPU 74%.
+
 ## 라벨 기준 (Label Studio 로 고칠 때도 같게)
 
 - 박스는 보이는 차체 전체에 딱 맞게 (범퍼·미러·바퀴 바깥에 가장자리가 닿게). 여유도, 줄이기도 하지 않는다.
