@@ -17,7 +17,7 @@ from .pipeline import Worker
 def main() -> None:
     ap = argparse.ArgumentParser(prog="parkai.worker")
     ap.add_argument("--config", type=Path, default=Path("/var/lib/parkai/config.json"))
-    ap.add_argument("--backend", default="auto", choices=["auto", "stai", "onnx", "fixture"])
+    ap.add_argument("--backend", default="auto", choices=["auto", "stai", "onnx", "tflite", "fixture"])
     ap.add_argument("--models-dir", type=Path, default=Path("/var/lib/parkai/models"))
     ap.add_argument("--replay", type=Path, help="재생 모드: <폴더>/<카메라IP>/*.jpg")
     ap.add_argument("--run-dir", type=Path, default=Path("/run/parkai"))
