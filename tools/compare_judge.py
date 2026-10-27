@@ -13,6 +13,7 @@
   standard(덮인 비율)로 각각 칸을 판정한다
 - 판정이 다른 칸만 출력하고, 그 사진은 --out 에 두 모델 결과를 나란히 그려 저장한다
   (기본 /tmp: 보드 eMMC 에 쓰지 않음)
+- 첫 바퀴의 원본 사진(<IP>_raw.jpg)과 박스 점수도 남긴다
 - 마지막에 모델별 카메라 1대당 추론 시간과 판정 일치율을 보여준다
 - --model 은 "백엔드=폴더" 또는 폴더만 (백엔드 auto: 보드면 stai, PC 면 onnx)
 """
@@ -94,6 +95,8 @@ def main() -> None:
             except SourceError as e:
                 print(f"{cam.ip}: 응답 없음 ({e})")
                 continue
+            if rnd == 1:  # 원본(선 없는 사진)은 첫 바퀴에 그대로 남긴다 (PC 에서 같은 사진으로 확인용)
+                (args.out / f"{cam.ip}_raw.jpg").write_bytes(jpeg)
             img = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
             if img is None:
                 print(f"{cam.ip}: 이미지 디코딩 실패")
@@ -114,6 +117,10 @@ def main() -> None:
                     bad.append(f"{pname} {no}번 A={sa} B={sb}")
             line = f"[{rnd}] {cam.ip}: 칸 {len(cam.slots)}개, 박스 A {len(boxes[0])} / B {len(boxes[1])}"
             print(line + (" — 다름: " + ", ".join(bad) if bad else " — 같음"))
+            if rnd == 1:
+                for k in range(2):
+                    sc = " ".join(f"{b.score:.2f}" for b in sorted(boxes[k], key=lambda b: -b.score))
+                    print(f"    {'AB'[k]} 점수: {sc or '-'}  (사진 {img.shape[1]}x{img.shape[0]})")
             if bad:
                 ref = cfg.camera_ref_size(cam)
                 std = presets["standard"]
