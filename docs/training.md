@@ -71,7 +71,7 @@ python stm32ai_main.py --config-path /path/to/config --config-name st_yoloxn_fin
 
 ## 6. 확인 → parkai 모델 패키지
 
-1. 양자화된 `.onnx` 를 `models/st_yoloxn_car_480/model.onnx` 로 복사
+1. PC 확인용: 양자화된 `.onnx` 를 `models/st_yoloxn_car_480/model.onnx` 로, 보드용: `.nb` 를 `model.nb` 로
 2. `model.json` 은 이미 있다 (입력 NCHW float, 출력 3개 NCHW, 1클래스)
 3. 같은 사진으로 YOLOv4 와 비교: `python tools/compare_models.py <사진> --model models/st_yoloxn_car_480 --cfg ... --weights ...`
 
@@ -85,12 +85,19 @@ ST Edge AI Core 는 MP2 모듈이 있는 2.2.0 을 쓴다 (3.x, 4.x 에는 MP2 �
 ```sh
 QT_QPA_PLATFORM=offscreen ./stedgeai-linux-onlineinstaller --root $HOME/ST/STEdgeAI \
   --accept-licenses --default-answer --confirm-command install stedgeai0202 stedgeai0202.stm32mpu
-$HOME/ST/STEdgeAI/2.2/Utilities/linux/stedgeai generate --model model.onnx --target stm32mp25 --output out
+$HOME/ST/STEdgeAI/2.2/Utilities/linux/stedgeai generate --model quantized_model.tflite --target stm32mp25 --output out
 ```
 
-양자화는 반드시 per_tensor. per_channel 로 만든 첫 모델은 보드에서 118ms 였고 계산의 94% 가
-GPU 로 넘어갔다 (benchmark: "Non-Optimal model ... 8-bits per-tensor"). 참고로 ST 의
-SSD MobileNet v2 per-tensor 256 모델은 25.8ms, NPU 74%.
+양자화는 TFLite per-tensor (학습 설정 기본값). 보드 x-linux-ai-benchmark 결과 (480x480, 2026-10-27):
+
+| 양자화 | .nb 변환 | 1회 추론 | NPU | 시험 198화면 정밀도/재현율/mAP |
+| --- | --- | --- | --- | --- |
+| ONNX per-channel | 됨 | 118.5ms | 6% (GPU 94%) | 94.8 / 96.4 / 98.3 |
+| ONNX per-tensor | 실패 (E010) | - | - | 74.1 / 96.6 / 95.8 |
+| TFLite per-tensor | 됨 | 21.6ms | 98.7% | 72.5 / 96.1 / 94.5 |
+
+per-tensor 는 엉뚱한 박스(정밀도)가 늘어 차량 인식 기준값을 현장 사진으로 다시 맞춘다.
+보드용 .nb 는 입력 NHWC uint8 (PC 용 model.onnx 는 NCHW float) — 백엔드가 .nb 에서 직접 읽는다.
 
 ## 라벨 기준 (Label Studio 로 고칠 때도 같게)
 

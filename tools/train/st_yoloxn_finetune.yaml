@@ -18,7 +18,7 @@ model:
   model_type: st_yoloxn
   model_path: <HOME>/st_train/pretrained/st_yoloxn_d100_w025_480.keras   # 출발점 (머리만 1클래스로 바뀜)
 
-operation_mode: training        # 2단계에서 chain_eqe (평가 → 양자화 → 평가)
+operation_mode: training        # 2단계에서 chain_eqe (평가 → TFLite 양자화 → 평가)
 
 dataset:
   format: darknet_yolo
@@ -100,22 +100,18 @@ postprocessing:
   plot_metrics: true
   max_detection_boxes: 100
 
-# 출발점과 같은 방식의 ONNX QDQ int8 (parkai onnx 백엔드로 바로 확인 가능, 이후 NPU .nb 변환의 입력)
+# 보드 NPU 용: TFLite per-tensor int8 (입력 uint8, 출력 float). 이것을 ST Edge AI Core 2.2 로 .nb 변환한다.
+# - ONNX per-channel: .nb 로 바뀌지만 계산 94% 가 GPU 로 넘어가 118ms
+# - ONNX per-tensor:  .nb 변환 실패 (E010 model is not supported)
+# - TFLite per-tensor: 21.6ms, NPU 98.7%  ← 이것
+# optimize: true 는 Model Zoo(a07f68a) 버그로 TFLite 양자화가 멈춘다 (model.input 이 list) → 쓰지 않는다
 quantization:
-  quantizer: Onnx_quantizer
+  quantizer: TFlite_converter
   quantization_type: PTQ
-  target_opset: 21
-  granularity: per_tensor        # MP2 NPU 는 8비트 per-tensor 라야 NPU 에서 돈다 (per_channel 은 대부분 GPU 로 넘어감)
+  granularity: per_tensor
   quantization_input_type: uint8
   quantization_output_type: float
   export_dir: quantized_models
-  onnx_quant_parameters:
-    weightType: Int8
-  onnx_extra_options:
-    WeightSymmetric: true
-    ActivationSymmetric: false
-    QuantizeBias: true
-    CalibMovingAverage: true
 
 mlflow:
   uri: ./tf/src/experiments_outputs/mlruns
