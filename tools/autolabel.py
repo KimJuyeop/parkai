@@ -5,8 +5,10 @@ ST 모델(st_yoloxn) 추가 학습용 데이터를 만든다. 사람은 결과�
     python tools/autolabel.py <사진 폴더> --cfg yolo.cfg --weights yolov4_best.weights --out dataset
 
 - 사진 폴더 아래를 모두 찾는다 (현장별 하위 폴더 권장: 사진폴더/현장이름/*.jpg)
-- 판정과 같은 단위로 자른다: 1280x960 은 위 절반의 640x480 두 화면, 가로로 긴 사진은 좌우 반씩
-  (작은 모델은 큰 사진을 통째로 넣으면 차를 못 알아본다)
+- 판정과 같은 단위로 자른다: 1280x960 은 위 절반의 640x480 두 화면, 그 밖의 크기는 사진 전체가 한 화면
+  (작은 모델은 큰 사진을 통째로 넣으면 차를 못 알아본다. 학습 화면이 판정 화면과 같아야 한다)
+- Jetson 이 저장한 *.jpgleft.jpg / *.jpgright.jpg 는 640x480 화면을 1280x720 으로 늘린 사본이라
+  판정 화면과 비율이 달라 건너뛴다 (원본 1280x960 을 쓴다. --keep-presplit 로 끌 수 있음)
 - 같은 카메라의 거의 같은 사진은 건너뛴다 (--dedupe 로 기준 조정, 0이면 끔)
 
 결과 (YOLO 형식, Label Studio로 가져올 수 있음):
@@ -38,15 +40,20 @@ IMAGE_EXT = {".jpg", ".jpeg", ".png"}
 
 
 def views_for(w: int, h: int, mode: str) -> list[tuple[int, int, int, int]]:
-    """잘라낼 화면 (x, y, w, h)."""
+    """잘라낼 화면 (x, y, w, h). parkai 카메라 프로필의 views 와 같아야 한다."""
     if mode == "full":
         return [(0, 0, w, h)]
-    if (w, h) == (1280, 960):  # 위 절반에 두 화면이 들어 있는 카메라
-        return [(0, 0, 640, 480), (640, 0, 640, 480)]
-    if mode == "split" or w >= h * 1.5:
+    if mode == "auto" and w * 3 == h * 4:  # 4:3 (1280x960 등): 위 절반에 두 화면이 들어 있는 카메라
+        return [(0, 0, w // 2, h // 2), (w // 2, 0, w - w // 2, h // 2)]
+    if mode == "split":
         half = w // 2
         return [(0, 0, half, h), (half, 0, w - half, h)]
     return [(0, 0, w, h)]
+
+
+def is_presplit(p: Path) -> bool:
+    """Jetson 이 화면 하나를 1280x720 으로 늘려 저장한 사본 (*.jpgleft.jpg, *.jpgright.jpg)."""
+    return p.stem.endswith(("jpgleft", "jpgright"))
 
 
 def thumb(img: np.ndarray) -> np.ndarray:
@@ -67,6 +74,7 @@ def main() -> None:
     ap.add_argument("--views", choices=["auto", "full", "split"], default="auto")
     ap.add_argument("--dedupe", type=float, default=4.0, help="직전 사진과 차이가 이보다 작으면 건너뜀")
     ap.add_argument("--preview", action="store_true", help="박스를 그린 미리보기 저장")
+    ap.add_argument("--keep-presplit", action="store_true", help="*.jpgleft/*.jpgright 도 쓴다")
     args = ap.parse_args()
 
     if not hasattr(cv2.dnn, "readNetFromDarknet"):
@@ -83,6 +91,11 @@ def main() -> None:
     (args.out / "classes.txt").write_text("car\n", encoding="utf-8")
 
     files = sorted(p for p in args.src.rglob("*") if p.suffix.lower() in IMAGE_EXT)
+    if not args.keep_presplit:
+        skipped = [p for p in files if is_presplit(p)]
+        files = [p for p in files if not is_presplit(p)]
+        if skipped:
+            print(f"Jetson 화면 사본(*.jpgleft/*.jpgright) {len(skipped)}장 건너뜀 (원본 사진을 쓴다)")
     last: dict[tuple[Path, int], np.ndarray] = {}
     review: list[str] = []
     n_views = n_boxes = n_skip = n_dark = 0
