@@ -38,6 +38,10 @@ git -C stm32ai-modelzoo-services checkout -q "$ZOO_COMMIT"
 # 평가 배치가 64로 고정돼 있어 8GB 노트북 GPU에서 메모리 부족(ResourceExhaustedError)으로 멈춘다 → 8로
 sed -i 's/        val_batch_size = 64$/        val_batch_size = 8   # parkai: 8GB GPU/' \
   stm32ai-modelzoo-services/object_detection/tf/src/datasets/utils/dataset_loaders.py
+# per-tensor 최적화(quantization.optimize=true)를 켜면 최적화된 모델의 model.input 이 list 가 되어
+# TFLite 양자화가 멈춘다 → 첫 입력의 모양을 읽게 고친다
+sed -i 's/tuple(self.model.input.shape\[1:\])/tuple(self.model.inputs[0].shape[1:])/' \
+  stm32ai-modelzoo-services/object_detection/tf/src/quantization/tf_quantizer.py
 
 echo "[4/5] 가상환경 + 패키지 (몇 GB, 시간이 걸린다)"
 python3.12 -m venv "$BASE/venv"

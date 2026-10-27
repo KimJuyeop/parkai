@@ -1,0 +1,31 @@
+{
+  "arch": "st_yoloxn",
+  "input_size": [
+    480,
+    480
+  ],
+  "classes": [
+    "car"
+  ],
+  "color": "rgb",
+  "layout": "nhwc",
+  "input_scale": 255.0,
+  "resize": "fit",
+  "interpolation": "nearest",
+  "anchors": [
+    [
+      0.5,
+      0.5
+    ],
+    [
+      0.07,
+      0.25
+    ],
+    [
+      0.23,
+      0.7
+    ]
+  ],
+  "class_map": {},
+  "note": "보드용: TFLite per-tensor int8 (입력 uint8 NHWC, 1/255 내장, 출력 3개 NHWC float) → ST Edge AI Core 2.2 로 model.nb. 보드 21.6ms NPU 98.7%"
+}

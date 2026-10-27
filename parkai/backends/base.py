@@ -93,7 +93,7 @@ class ModelDetector(Detector):
 
 
 def load_detector(backend: str, model_dir: str | Path | None) -> Detector:
-    """backend: auto | stai | onnx | fixture"""
+    """backend: auto | stai | onnx | tflite | fixture"""
     if backend == "fixture":
         from .fixture import FixtureDetector
 
@@ -111,6 +111,10 @@ def load_detector(backend: str, model_dir: str | Path | None) -> Detector:
         from .onnx import OnnxDetector
 
         return OnnxDetector(pkg)
+    if backend == "tflite":
+        from .tflite import TfliteDetector
+
+        return TfliteDetector(pkg)
     raise ValueError(f"알 수 없는 백엔드: {backend}")
 
 

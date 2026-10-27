@@ -104,7 +104,7 @@ postprocessing:
 # - ONNX per-channel: .nb 로 바뀌지만 계산 94% 가 GPU 로 넘어가 118ms
 # - ONNX per-tensor:  .nb 변환 실패 (E010 model is not supported)
 # - TFLite per-tensor: 21.6ms, NPU 98.7%  ← 이것
-# optimize: true 는 Model Zoo(a07f68a) 버그로 TFLite 양자화가 멈춘다 (model.input 이 list) → 쓰지 않는다
+# 정확도를 올리려면 +quantization.optimize=true (per-tensor 최적화). Model Zoo 버그는 setup_wsl.sh 가 고친다
 quantization:
   quantizer: TFlite_converter
   quantization_type: PTQ
