@@ -196,17 +196,17 @@ class Worker:
     def _detect(self, p: Prepared) -> list[Box]:
         det = self.cfg.detection
         conf = {k: c.conf for k, c in det.classes.items() if c.enabled}
-        ref_w, _ = self.cfg.camera_ref_size(p.cam)
+        ref_w, ref_h = self.cfg.camera_ref_size(p.cam)
         if getattr(self.detector, "full_frame", False):
-            s = ref_w / p.image.shape[1]
+            sx, sy = ref_w / p.image.shape[1], ref_h / p.image.shape[0]
             boxes = self.detector.detect(p.image, conf, det.nms_iou, p.source_key)
-            return [b.shifted(0, 0, s) for b in boxes]
+            return [b.shifted(0, 0, sx, sy) for b in boxes]
         boxes: list[Box] = []
         for v, ok in zip(p.views, p.view_ok, strict=True):
             if not ok:
                 continue
             for b in self.detector.detect(v.image, conf, det.nms_iou):
-                boxes.append(b.shifted(v.offset[0], v.offset[1], v.to_ref))
+                boxes.append(v.box_to_ref(b))
         return boxes
 
     def _process(self, rt: CameraRuntime, p: Prepared) -> dict:

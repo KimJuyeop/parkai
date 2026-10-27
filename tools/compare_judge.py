@@ -47,7 +47,7 @@ def detect_camera(det, img, cam: Camera, cfg) -> tuple[list[Box], float]:
     t = time.perf_counter()
     boxes = []
     for v in views:
-        boxes += [b.shifted(v.offset[0], v.offset[1], v.to_ref) for b in det.detect(v.image, conf, d.nms_iou)]
+        boxes += [v.box_to_ref(b) for b in det.detect(v.image, conf, d.nms_iou)]
     return boxes, time.perf_counter() - t
 
 

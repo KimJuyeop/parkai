@@ -109,6 +109,14 @@ def test_split_scales_when_resolution_differs():
     assert views[0].to_ref == pytest.approx(2.0)
 
 
+def test_split_maps_boxes_back_when_aspect_differs():
+    # 사진(1280x480)과 ref(640x360)의 가로세로 비율이 다르면 세로 배율이 가로와 달라야 한다
+    img = np.zeros((480, 1280, 3), np.uint8)
+    (v,) = split_views(img, [(0, 0, 640, 360)], (640, 360))
+    b = v.box_to_ref(Box(100, 400, 300, 480, 0.9))
+    assert (b.x1, b.y1, b.x2, b.y2) == pytest.approx((50, 300, 150, 360))
+
+
 # ---------- payload / indicator ----------
 
 

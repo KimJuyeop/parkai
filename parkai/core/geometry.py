@@ -19,13 +19,15 @@ class Box:
     def center(self) -> tuple[float, float]:
         return ((self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2)
 
-    def shifted(self, dx: float, dy: float, scale: float = 1.0) -> Box:
-        """(x * scale + dx) 변환. 화면 분할 좌표를 원본 좌표로 되돌릴 때 사용."""
+    def shifted(self, dx: float, dy: float, scale: float = 1.0, scale_y: float | None = None) -> Box:
+        """(x * scale + dx, y * scale_y + dy) 변환. 화면 분할 좌표를 원본 좌표로 되돌릴 때 사용.
+        scale_y 를 주지 않으면 가로세로 같은 배율."""
+        sy = scale if scale_y is None else scale_y
         return Box(
             self.x1 * scale + dx,
-            self.y1 * scale + dy,
+            self.y1 * sy + dy,
             self.x2 * scale + dx,
-            self.y2 * scale + dy,
+            self.y2 * sy + dy,
             self.score,
             self.cls,
         )

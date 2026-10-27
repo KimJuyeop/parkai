@@ -10,13 +10,20 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .geometry import Box
+
 
 @dataclass
 class View:
     index: int
     image: np.ndarray  # 잘라낸 영역 (실제 해상도)
     offset: tuple[float, float]  # ref 좌표계에서의 시작점
-    to_ref: float  # 실제 픽셀 -> ref 픽셀 배율 (가로 기준)
+    to_ref: float  # 실제 픽셀 -> ref 픽셀 배율 (가로)
+    to_ref_y: float  # 세로. 카메라 사진과 ref_size 의 가로세로 비율이 다르면 가로와 다르다
+
+    def box_to_ref(self, b: Box) -> Box:
+        """이 화면 안의 박스(실제 픽셀)를 카메라 ref_size 좌표로."""
+        return b.shifted(self.offset[0], self.offset[1], self.to_ref, self.to_ref_y)
 
 
 def split_views(
@@ -30,5 +37,5 @@ def split_views(
     for i, (x, y, vw, vh) in enumerate(views):
         x0, y0 = round(x * sx), round(y * sy)
         x1, y1 = round((x + vw) * sx), round((y + vh) * sy)
-        out.append(View(i, img[y0:y1, x0:x1], (float(x), float(y)), 1.0 / sx))
+        out.append(View(i, img[y0:y1, x0:x1], (float(x), float(y)), 1.0 / sx, 1.0 / sy))
     return out
