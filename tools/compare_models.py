@@ -73,7 +73,7 @@ def main() -> None:
     ap.add_argument("--weights", type=Path, required=True)
     ap.add_argument("--out", type=Path, default=Path("compare"))
     ap.add_argument("--conf", type=float, default=0.45, help="두 모델 공통 차량 기준값")
-    ap.add_argument("--views", choices=["auto", "full", "split"], default="auto")
+    ap.add_argument("--views", default="full", help="full | square2 | x,y,w,h;… (autolabel.py 와 같음)")
     args = ap.parse_args()
 
     net = cv2.dnn.readNetFromDarknet(str(args.cfg), str(args.weights))

@@ -13,9 +13,12 @@ TensorFlow 2.11 이후는 윈도우에서 직접 GPU를 쓰지 못해서 WSL 안
 ## 1. 사진 모으기
 
 - 현장별 폴더: `사진/<현장>/<카메라IP>/*.jpg` (카메라 폴더까지 나누면 학습/시험을 카메라 단위로 나눌 수 있다)
-- 카메라 원본 스냅샷 그대로 (1280×960). 학습 화면은 판정 화면과 같게 위 절반의 640×480 두 화면으로 자른다
-- Jetson 이 저장한 `*.jpgleft.jpg` / `*.jpgright.jpg` 는 쓰지 않는다: 640×480 화면을 1280×720 으로 늘린 사본이라
-  예전 autolabel 이 이것을 다시 좌우로 잘라 '반쪽 화면'(차가 가로로 2배)을 학습했다 (첫 학습 시험 세트의 62%)
+- **렌즈 원본**을 쓴다. 렌즈 2개 카메라는 Jetson 이 저장한 `*.jpgleft.jpg` / `*.jpgright.jpg`(1280×720)가 원본이고,
+  같은 이름의 `*.jpg`(1280×960)는 두 렌즈를 640×480 으로 줄여 붙인 합친 사진이라 쓰지 않는다 (autolabel 이 건너뜀).
+- 학습 화면은 판정 화면(parkai 프로필의 분석 영역)과 같게 자른다: `--views full`(렌즈 사진 전체) 또는
+  `--views square2`(가운데가 겹치는 정사각형 두 조각). 어느 쪽이 나은지는 각각 학습해서 38대 정답표로 비교한다.
+- 첫 학습(2026-10-26)은 렌즈 원본을 다시 좌우로 잘라(반쪽 화면) 학습했고, 판정은 합친 사진의 640×480 화면으로 해서
+  학습과 판정 화면이 달랐다 (시험 세트의 62%가 반쪽 화면).
 - 만차, 빈칸 많을 때, 시간대를 섞는다. 처음엔 2,000~5,000장
 
 ## 2. 자동 라벨링 (윈도우 또는 WSL, GPU 불필요)
@@ -25,7 +28,7 @@ darknet 모델은 OpenCV 4.x 에서만 읽힌다.
 ```sh
 python -m venv .venv-label && . .venv-label/bin/activate      # 윈도우: .venv-label\Scripts\activate
 pip install "opencv-python-headless<5" numpy
-python tools/autolabel.py 사진 --cfg yolo.cfg --weights yolov4_best.weights --out dataset --preview
+python tools/autolabel.py 사진 --cfg yolo.cfg --weights yolov4_best.weights --out dataset --views full --preview
 ```
 
 - `dataset/preview/` 를 훑어본다. `review.txt` 에 애매한 화면 목록이 있다.

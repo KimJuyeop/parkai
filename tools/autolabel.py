@@ -5,10 +5,14 @@ ST 모델(st_yoloxn) 추가 학습용 데이터를 만든다. 사람은 결과�
     python tools/autolabel.py <사진 폴더> --cfg yolo.cfg --weights yolov4_best.weights --out dataset
 
 - 사진 폴더 아래를 모두 찾는다 (현장별 하위 폴더 권장: 사진폴더/현장이름/*.jpg)
-- 판정과 같은 단위로 자른다: 1280x960 은 위 절반의 640x480 두 화면, 그 밖의 크기는 사진 전체가 한 화면
-  (작은 모델은 큰 사진을 통째로 넣으면 차를 못 알아본다. 학습 화면이 판정 화면과 같아야 한다)
-- Jetson 이 저장한 *.jpgleft.jpg / *.jpgright.jpg 는 640x480 화면을 1280x720 으로 늘린 사본이라
-  판정 화면과 비율이 달라 건너뛴다 (원본 1280x960 을 쓴다. --keep-presplit 로 끌 수 있음)
+- 사진 한 장 = 렌즈 원본 한 장. 판정(parkai 프로필의 분석 영역)과 같은 단위로 자른다 (--views)
+    full     사진 전체 (기본)
+    square2  가운데가 겹치는 정사각형 두 조각 (1280x720 이면 720x720 두 개)
+    x,y,w,h;…  비율 영역을 직접 (프로필의 분석 영역과 같은 값)
+  학습 화면이 판정 화면과 같아야 한다
+- 렌즈 2개 카메라: Jetson 이 저장한 *.jpgleft.jpg / *.jpgright.jpg 가 렌즈 원본(1280x720)이다.
+  같은 이름의 *.jpg 는 두 렌즈를 640x480 으로 줄여 붙인 합친 사진이라 건너뛴다
+  (--keep-composite 로 끌 수 있음)
 - 같은 카메라의 거의 같은 사진은 건너뛴다 (--dedupe 로 기준 조정, 0이면 끔)
 
 결과 (YOLO 형식, Label Studio로 가져올 수 있음):
@@ -39,21 +43,30 @@ import numpy as np
 IMAGE_EXT = {".jpg", ".jpeg", ".png"}
 
 
-def views_for(w: int, h: int, mode: str) -> list[tuple[int, int, int, int]]:
-    """잘라낼 화면 (x, y, w, h). parkai 카메라 프로필의 views 와 같아야 한다."""
-    if mode == "full":
-        return [(0, 0, w, h)]
-    if mode == "auto" and w * 3 == h * 4:  # 4:3 (1280x960 등): 위 절반에 두 화면이 들어 있는 카메라
-        return [(0, 0, w // 2, h // 2), (w // 2, 0, w - w // 2, h // 2)]
-    if mode == "split":
-        half = w // 2
-        return [(0, 0, half, h), (half, 0, w - half, h)]
-    return [(0, 0, w, h)]
+def view_rects(spec: str, w: int, h: int) -> list[tuple[float, float, float, float]]:
+    """--views 값 → 비율 영역 목록 (parkai 프로필의 views 와 같은 형식)."""
+    if spec == "full":
+        return [(0.0, 0.0, 1.0, 1.0)]
+    if spec == "square2":
+        if w <= h:
+            return [(0.0, 0.0, 1.0, 1.0)]
+        sw = h / w  # 정사각형 한 변의 가로 비율
+        return [(0.0, 0.0, sw, 1.0), (1.0 - sw, 0.0, sw, 1.0)]
+    return [tuple(float(x) for x in r.split(",")) for r in spec.split(";") if r.strip()]  # type: ignore[misc]
 
 
-def is_presplit(p: Path) -> bool:
-    """Jetson 이 화면 하나를 1280x720 으로 늘려 저장한 사본 (*.jpgleft.jpg, *.jpgright.jpg)."""
-    return p.stem.endswith(("jpgleft", "jpgright"))
+def views_for(w: int, h: int, spec: str) -> list[tuple[int, int, int, int]]:
+    """잘라낼 화면 (x, y, w, h) 픽셀."""
+    out = []
+    for x, y, vw, vh in view_rects(spec, w, h):
+        x0, y0 = round(x * w), round(y * h)
+        out.append((x0, y0, min(w, round((x + vw) * w)) - x0, min(h, round((y + vh) * h)) - y0))
+    return out
+
+
+def is_composite(p: Path) -> bool:
+    """렌즈 두 장을 줄여 붙인 Jetson 합친 사진: 옆에 같은 이름의 *.jpgleft.jpg 가 있다."""
+    return p.with_name(p.name + "left.jpg").exists() or p.with_name(p.stem + ".jpgleft.jpg").exists()
 
 
 def thumb(img: np.ndarray) -> np.ndarray:
@@ -71,10 +84,10 @@ def main() -> None:
     ap.add_argument("--size", type=int, default=416, help="YOLOv4 입력 크기 (cfg 와 같게)")
     ap.add_argument("--conf", type=float, default=0.5, help="이 점수 이상만 라벨로 저장")
     ap.add_argument("--low", type=float, default=0.25, help="이 점수~conf 는 애매함 (검토 목록)")
-    ap.add_argument("--views", choices=["auto", "full", "split"], default="auto")
+    ap.add_argument("--views", default="full", help="full | square2 | x,y,w,h;… (비율)")
     ap.add_argument("--dedupe", type=float, default=4.0, help="직전 사진과 차이가 이보다 작으면 건너뜀")
     ap.add_argument("--preview", action="store_true", help="박스를 그린 미리보기 저장")
-    ap.add_argument("--keep-presplit", action="store_true", help="*.jpgleft/*.jpgright 도 쓴다")
+    ap.add_argument("--keep-composite", action="store_true", help="렌즈를 합친 *.jpg 도 쓴다")
     args = ap.parse_args()
 
     if not hasattr(cv2.dnn, "readNetFromDarknet"):
@@ -91,12 +104,12 @@ def main() -> None:
     (args.out / "classes.txt").write_text("car\n", encoding="utf-8")
 
     files = sorted(p for p in args.src.rglob("*") if p.suffix.lower() in IMAGE_EXT)
-    if not args.keep_presplit:
-        skipped = [p for p in files if is_presplit(p)]
-        files = [p for p in files if not is_presplit(p)]
+    if not args.keep_composite:
+        skipped = [p for p in files if is_composite(p)]
+        files = [p for p in files if not is_composite(p)]
         if skipped:
-            print(f"Jetson 화면 사본(*.jpgleft/*.jpgright) {len(skipped)}장 건너뜀 (원본 사진을 쓴다)")
-    last: dict[tuple[Path, int], np.ndarray] = {}
+            print(f"렌즈를 합친 사진 {len(skipped)}장 건너뜀 (렌즈 원본 *.jpgleft/*.jpgright 를 쓴다)")
+    last: dict[tuple, np.ndarray] = {}
     review: list[str] = []
     n_views = n_boxes = n_skip = n_dark = 0
     for i, f in enumerate(files, 1):
@@ -113,7 +126,7 @@ def main() -> None:
                 n_dark += 1
                 continue
             t = thumb(v)
-            key = (f.parent, vi)
+            key = (f.parent, f.name.split(".jpg")[0], f.stem.endswith("right"), vi)  # 같은 카메라·렌즈·화면
             if args.dedupe > 0 and key in last and float(np.abs(t - last[key]).mean()) < args.dedupe:
                 n_skip += 1
                 continue
