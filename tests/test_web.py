@@ -23,7 +23,7 @@ def test_password_masked_and_kept(tmp_path, monkeypatch):
     got = client.get("/api/v1/config").json()
     assert got["cameras"][0]["password"] == "****"
 
-    got["cameras"][0]["slots"].append({"no": 6, "type": "ev", "line": [[1, 2], [3, 4]]})
+    got["cameras"][0]["slots"].append({"no": 6, "type": "ev", "line": [[0.1, 0.2], [0.3, 0.4]]})
     assert client.put("/api/v1/config", json=got).status_code == 200
 
     saved = json.loads(cfg.read_text(encoding="utf-8"))
@@ -34,7 +34,7 @@ def test_password_masked_and_kept(tmp_path, monkeypatch):
 def test_invalid_config_rejected(tmp_path, monkeypatch):
     client, cfg = make_client(tmp_path, monkeypatch)
     got = client.get("/api/v1/config").json()
-    got["cameras"][0]["slots"].append({"no": 1, "line": [[0, 0], [1, 1]]})  # 번호 중복
+    got["cameras"][0]["slots"].append({"no": 1, "line": [[0, 0], [0.1, 0.1]]})  # 번호 중복
     r = client.put("/api/v1/config", json=got)
     assert r.status_code == 422
     assert "중복" in " ".join(r.json()["detail"])
@@ -113,3 +113,25 @@ def test_default_indicator_colors_per_slot_type():
     # 저장된 색은 그대로 유지
     cfg = AppConfig.model_validate({"slot_types": [{"id": "ev", "name": "x", "color_available": "white"}]})
     assert {t.id: t.color_available for t in cfg.slot_types}["ev"] == "white"
+
+
+def test_snapshot_per_lens_from_samples(tmp_path, monkeypatch):
+    """렌즈마다 사진을 따로 준다. 샘플 폴더는 <IP>/ch<렌즈>/ (첫 렌즈는 <IP>/ 도 됨)."""
+    client, cfg = make_client(tmp_path, monkeypatch)
+    import parkai.web.app as appmod
+
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    data["cameras"][0]["profile"] = "IDIS 렌즈 2개"
+    data["cameras"][0]["port"] = 1  # 실제 카메라는 없음 → 샘플로
+    cfg.write_text(json.dumps(data), encoding="utf-8")
+    for ch, body in [(1, b"\xff\xd8\xff lens1"), (2, b"\xff\xd8\xff lens2")]:
+        d = tmp_path / "samples" / "192.168.13.21" / f"ch{ch}"
+        d.mkdir(parents=True)
+        (d / "0001.jpg").write_bytes(body)
+    monkeypatch.setattr(appmod, "SAMPLES", tmp_path / "samples")
+    monkeypatch.setattr(
+        appmod.HttpSnapshotSource, "fetch", lambda self: (_ for _ in ()).throw(appmod.SourceError("x"))
+    )
+    assert client.get("/api/v1/cameras/192.168.13.21/snapshot?lens=0").content.endswith(b"lens1")
+    assert client.get("/api/v1/cameras/192.168.13.21/snapshot?lens=1").content.endswith(b"lens2")
+    assert client.get("/api/v1/cameras/192.168.13.21/snapshot?lens=2").status_code == 404

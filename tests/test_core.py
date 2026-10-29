@@ -5,14 +5,15 @@ from pydantic import ValidationError
 from parkai.core.config import AppConfig, JudgeCfg, Slot, load_config
 from parkai.core.geometry import Box, Letterbox, segment_inside_fraction
 from parkai.core.judge import judge
-from parkai.core.layout import split_views
+from parkai.core.layout import split_views, view_of
 from parkai.core.stabilizer import SlotStabilizer
 from parkai.outputs.indicator import decide_color
 from parkai.outputs.server import build_payload
 
 
 def slot(no, p, q, type_="normal"):
-    return Slot(no=no, type=type_, line=(p, q))
+    """판정은 렌즈 사진 픽셀 좌표로 하므로 비율(0~1) 검사 없이 만든다 (워커의 slot_in_px 와 같음)."""
+    return Slot(no=no, type=type_, line=((0, 0), (0, 0))).model_copy(update={"line": (p, q)})
 
 
 # ---------- geometry ----------
@@ -97,24 +98,71 @@ def test_stabilizer_n2_follows_real_change():
 
 def test_split_dual_top_half():
     img = np.zeros((960, 1280, 3), np.uint8)
-    views = split_views(img, [(0, 0, 640, 480), (640, 0, 640, 480)], (1280, 960))
+    views = split_views(img, [(0, 0, 0.5, 0.5), (0.5, 0, 0.5, 0.5)])
     assert [v.image.shape[:2] for v in views] == [(480, 640), (480, 640)]
-    assert views[1].offset == (640.0, 0.0)
+    assert views[1].offset == (640, 0)
 
 
-def test_split_scales_when_resolution_differs():
-    img = np.zeros((480, 640, 3), np.uint8)  # ref의 절반 해상도
-    views = split_views(img, [(640, 0, 640, 480)], (1280, 960))
-    assert views[0].image.shape[:2] == (240, 320)
-    assert views[0].to_ref == pytest.approx(2.0)
+def test_split_same_place_at_any_resolution():
+    # 비율 영역이라 해상도가 달라도 같은 곳을 자른다
+    for w, h in [(640, 360), (1280, 720), (1920, 1080)]:
+        (v,) = split_views(np.zeros((h, w, 3), np.uint8), [(0.5, 0, 0.5, 1)])
+        assert v.image.shape[:2] == (h, w // 2) and v.offset == (w // 2, 0)
+        b = v.box_to_lens(Box(10, 20, 30, 40, 0.9))
+        assert (b.x1, b.y1) == (w // 2 + 10, 20)
 
 
-def test_split_maps_boxes_back_when_aspect_differs():
-    # 사진(1280x480)과 ref(640x360)의 가로세로 비율이 다르면 세로 배율이 가로와 달라야 한다
-    img = np.zeros((480, 1280, 3), np.uint8)
-    (v,) = split_views(img, [(0, 0, 640, 360)], (640, 360))
-    b = v.box_to_ref(Box(100, 400, 300, 480, 0.9))
-    assert (b.x1, b.y1, b.x2, b.y2) == pytest.approx((50, 300, 150, 360))
+def test_view_of_point():
+    views = [(0, 0, 0.5, 0.5), (0.5, 0, 0.5, 0.5)]
+    assert view_of((0.2, 0.2), views) == 0
+    assert view_of((0.7, 0.2), views) == 1
+    assert view_of((0.7, 0.8), views) is None
+
+
+def test_v1_config_migrates_to_lens_ratios():
+    c = AppConfig.model_validate(
+        {
+            "camera_profiles": {
+                "p": {
+                    "snapshot_url": "x",
+                    "ref_size": [1280, 960],
+                    "views": [[0, 0, 640, 480], [640, 0, 640, 480]],
+                }
+            },
+            "cameras": [
+                {"ip": "1.1.1.1", "profile": "p", "slots": [{"no": 1, "line": [[128, 96], [640, 480]]}]},
+                {
+                    "ip": "1.1.1.2",
+                    "profile": "p",
+                    "ref_size": [640, 480],
+                    "slots": [{"no": 1, "line": [[64, 48], [320, 240]]}],
+                },
+            ],
+        }
+    )
+    assert c.schema_version == 2
+    prof = c.camera_profiles["p"]
+    assert prof.lenses == 1 and prof.views == [(0, 0, 0.5, 0.5), (0.5, 0, 0.5, 0.5)]
+    for cam in c.cameras:  # 카메라별 기준 해상도도 반영
+        assert cam.slots[0].lens == 0
+        assert cam.slots[0].line == ((0.1, 0.1), (0.5, 0.5))
+
+
+def test_slot_lens_must_exist():
+    with pytest.raises(ValidationError):
+        AppConfig.model_validate(
+            {
+                "schema_version": 2,
+                "camera_profiles": {"p": {"snapshot_url": "x", "lenses": 1}},
+                "cameras": [
+                    {
+                        "ip": "1.1.1.1",
+                        "profile": "p",
+                        "slots": [{"no": 1, "lens": 1, "line": [[0, 0], [1, 1]]}],
+                    }
+                ],
+            }
+        )
 
 
 # ---------- payload / indicator ----------
@@ -132,6 +180,22 @@ def test_indicator_full_and_available():
     s = [slot(1, (0, 0), (1, 1)), slot(2, (0, 0), (1, 1))]
     assert decide_color(s, {1: True, 2: True}, cfg.slot_types) == "red"
     assert decide_color(s, {1: True, 2: False}, cfg.slot_types) == "green"
+
+
+def test_idis_led_command():
+    from parkai.core.config import Camera, IndicatorCfg
+    from parkai.outputs.indicator import led_url, return_code
+
+    cam = Camera(ip="192.168.0.201", port=80, profile="p")
+    url = led_url(cam, IndicatorCfg(), "purple")
+    assert (
+        url
+        == "http://192.168.0.201:80/cgi-bin/webSetup.cgi?action=ledControl&mode=0&type=internal&color=0x8000ff"
+    )
+    assert led_url(cam, IndicatorCfg(), "red").endswith("color=0xff0000")
+    assert return_code("returnCode=0\r\n") == 0
+    assert return_code("returnCode=9999") == 9999
+    assert return_code("") is None
 
 
 # ---------- config ----------

@@ -12,10 +12,12 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # 2: 렌즈(lenses), 좌표를 렌즈 사진 대비 비율로
 MAX_SLOTS_PER_CAMERA = 12  # 서버 전송 ps01~ps12
+MAX_LENSES = 4
 
-Point = tuple[float, float]
+Point = tuple[float, float]  # 렌즈 사진 대비 비율 (0~1)
+Rect = tuple[float, float, float, float]  # x, y, w, h (렌즈 사진 대비 비율)
 
 
 class SiteInfo(BaseModel):
@@ -88,7 +90,7 @@ class DetectionCfg(BaseModel):
 
 FULL_COLOR = "red"  # 모두 차면 만공등은 항상 빨간색
 
-# 만공등 색 선택지 (값: 표시 이름). 실제 지원 색은 카메라 사양 확인 후 조정
+# 만공등 색 선택지 (값: 표시 이름)
 INDICATOR_COLORS = {
     "green": "녹색",
     "blue": "파란색",
@@ -96,6 +98,16 @@ INDICATOR_COLORS = {
     "white": "흰색",
     "purple": "보라색",
     "cyan": "하늘색",
+}
+# 카메라로 보내는 실제 LED 색 (IDIS ledControl color=0xRRGGBB)
+LED_RGB = {
+    "red": 0xFF0000,
+    "green": 0x00FF00,
+    "blue": 0x0000FF,
+    "yellow": 0xFFFF00,
+    "white": 0xFFFFFF,
+    "purple": 0x8000FF,
+    "cyan": 0x00FFFF,
 }
 
 
@@ -114,14 +126,28 @@ DEFAULT_SLOT_TYPES = [
 ]
 
 
+# IDIS 카메라 스냅샷 (Web API v1.6). streamIndex 1 은 동영상 전용이라 스냅샷이 안 된다
+IDIS_SNAPSHOT_URL = "http://{ip}:{port}/cgi-bin/webSetup.cgi?action=videoStreamSnapshot&mode=1&streamIndex=2&channel={channel}"
+
+
 class CameraProfile(BaseModel):
-    snapshot_url: str  # {ip}, {port} 치환
+    snapshot_url: str  # {ip}, {port}, {channel}(렌즈 번호, 1부터) 치환
     auth: Literal["none", "basic", "digest"] = "digest"
     user: str = ""  # 이 프로필을 쓰는 카메라 공통 계정
     password: str = ""
-    ref_size: tuple[int, int] = (1280, 960)
-    # 추론할 화면 영역 [x, y, w, h] (ref_size 기준)
-    views: list[tuple[int, int, int, int]] = [(0, 0, 640, 480), (640, 0, 640, 480)]
+    lenses: int = Field(1, ge=1, le=MAX_LENSES)  # 렌즈(영상 채널) 수. 렌즈마다 사진을 따로 받는다
+    # 추론할 화면 영역 [x, y, w, h] (렌즈 사진 대비 비율). 모든 렌즈에 같게 적용
+    views: list[Rect] = [(0.0, 0.0, 1.0, 1.0)]
+
+    @field_validator("views")
+    @classmethod
+    def _views_in_range(cls, v: list[Rect]) -> list[Rect]:
+        if not v:
+            raise ValueError("분석 영역이 하나 이상 있어야 합니다")
+        for x, y, w, h in v:
+            if w <= 0 or h <= 0 or x < 0 or y < 0 or x + w > 1.0001 or y + h > 1.0001:
+                raise ValueError(f"분석 영역은 사진 안의 비율(0~1)이어야 합니다: {[x, y, w, h]}")
+        return v
 
 
 class JudgeOverride(BaseModel):
@@ -131,9 +157,17 @@ class JudgeOverride(BaseModel):
 class Slot(BaseModel):
     no: int = Field(ge=1, le=MAX_SLOTS_PER_CAMERA)
     type: str = "normal"
-    line: tuple[Point, Point]  # 카메라 ref_size 기준 픽셀 좌표
+    lens: int = Field(0, ge=0, lt=MAX_LENSES)  # 렌즈 번호 (0부터)
+    line: tuple[Point, Point]  # 렌즈 사진 대비 비율 (0~1)
     name: str = ""  # 선택 메모
     judge: JudgeOverride | None = None
+
+    @field_validator("line")
+    @classmethod
+    def _line_in_range(cls, v: tuple[Point, Point]) -> tuple[Point, Point]:
+        if any(not -0.001 <= c <= 1.001 for p in v for c in p):
+            raise ValueError("선분 좌표는 렌즈 사진 대비 비율(0~1)이어야 합니다")
+        return v
 
 
 class Camera(BaseModel):
@@ -143,9 +177,8 @@ class Camera(BaseModel):
     own_account: bool = False  # True면 아래 계정 사용, False면 프로필 공통 계정
     user: str = ""
     password: str = ""
-    controller_ip: str | None = None  # 용도 확인 필요 (만공등 제어 대상일 가능성)
+    controller_ip: str | None = None  # 용도 확인 필요 (Jetson 설정에서 옮겨 온 값)
     board: str | None = None  # 담당 보드명. None이면 어느 보드든 처리
-    ref_size: tuple[int, int] | None = None  # None이면 프로필 값
     enabled: bool = True
     slots: list[Slot] = []
 
@@ -173,7 +206,9 @@ class ServerCfg(BaseModel):
 
 class IndicatorCfg(BaseModel):
     enabled: bool = False
-    protocol: str | None = None  # 카메라 사양 확인 후 결정
+    protocol: Literal["idis"] = "idis"  # IDIS 카메라 Web API ledControl
+    led_type: Literal["internal", "external"] = "internal"  # 카메라 내장 LED / 카메라에 연결한 외부 등
+    resend_sec: float = 60.0  # 색이 같아도 이 주기마다 다시 보낸다 (카메라 재부팅 대비)
 
 
 class AppConfig(BaseModel):
@@ -206,11 +241,18 @@ class AppConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _migrate(cls, data):
-        """예전 설정 파일: 카메라마다 비밀번호가 있었으면 개별 계정으로 유지."""
-        if isinstance(data, dict):
-            for cam in data.get("cameras") or []:
-                if isinstance(cam, dict) and "own_account" not in cam and cam.get("password"):
-                    cam["own_account"] = True
+        """예전 설정 파일 자동 변환.
+        - 카메라마다 비밀번호가 있었으면 개별 계정으로 유지
+        - 버전 1: 기준 해상도(ref_size) 픽셀 좌표 → 렌즈 사진 대비 비율, 렌즈 1개
+        """
+        if not isinstance(data, dict):
+            return data
+        for cam in data.get("cameras") or []:
+            if isinstance(cam, dict) and "own_account" not in cam and cam.get("password"):
+                cam["own_account"] = True
+        if int(data.get("schema_version") or 1) < 2:
+            _migrate_v1(data)
+        data["schema_version"] = SCHEMA_VERSION
         return data
 
     @model_validator(mode="after")
@@ -223,9 +265,14 @@ class AppConfig(BaseModel):
             if cam.ip in seen_ips:
                 raise ValueError(f"카메라 IP 중복: {cam.ip}")
             seen_ips.add(cam.ip)
+            lenses = self.camera_profiles[cam.profile].lenses
             for s in cam.slots:
                 if s.type not in type_ids:
                     raise ValueError(f"카메라 {cam.ip} {s.no}번 칸: 없는 주차 종류 '{s.type}'")
+                if s.lens >= lenses:
+                    raise ValueError(
+                        f"카메라 {cam.ip} {s.no}번 칸: 렌즈 {s.lens + 1}이 없습니다 (렌즈 {lenses}개)"
+                    )
         return self
 
     def camera_account(self, cam: Camera) -> tuple[str, str]:
@@ -234,13 +281,36 @@ class AppConfig(BaseModel):
         p = self.camera_profiles[cam.profile]
         return p.user, p.password
 
-    def camera_ref_size(self, cam: Camera) -> tuple[int, int]:
-        return cam.ref_size or self.camera_profiles[cam.profile].ref_size
+    def camera_lenses(self, cam: Camera) -> int:
+        return self.camera_profiles[cam.profile].lenses
 
     def cameras_for_board(self) -> list[Camera]:
         """이 보드가 담당할 카메라. board가 비어 있으면 모두 담당."""
         me = self.site.board_name
         return [c for c in self.cameras if c.enabled and (c.board is None or not me or c.board == me)]
+
+
+def _migrate_v1(data: dict) -> None:
+    """설정 버전 1 (기준 해상도 픽셀 좌표, 사진 주소 하나) → 2."""
+    refs: dict[str, tuple[float, float]] = {}
+    for name, prof in (data.get("camera_profiles") or {}).items():
+        if not isinstance(prof, dict):
+            continue
+        rw, rh = prof.pop("ref_size", None) or (1280, 960)
+        refs[name] = (rw, rh)
+        prof.setdefault("lenses", 1)
+        if "views" in prof:
+            prof["views"] = [[x / rw, y / rh, w / rw, h / rh] for x, y, w, h in prof["views"]]
+        else:  # 예전 기본값: 1280x960 위 절반의 두 화면
+            prof["views"] = [[0, 0, 0.5, 0.5], [0.5, 0, 0.5, 0.5]]
+    for cam in data.get("cameras") or []:
+        if not isinstance(cam, dict):
+            continue
+        rw, rh = cam.pop("ref_size", None) or refs.get(cam.get("profile"), (1280, 960))
+        for s in cam.get("slots") or []:
+            if isinstance(s, dict) and "line" in s:
+                s["line"] = [[x / rw, y / rh] for x, y in s["line"]]
+                s.setdefault("lens", 0)
 
 
 def load_config(path: str | Path) -> AppConfig:

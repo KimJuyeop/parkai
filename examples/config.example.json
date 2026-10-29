@@ -1,18 +1,31 @@
 {
-  "schema_version": 1,
-  "site": { "name": "테스트 현장", "board_name": "B1-A" },
-  "network": { "board_ip": null },
+  "schema_version": 2,
+  "site": {
+    "name": "테스트 현장",
+    "board_name": "B1-A"
+  },
+  "network": {
+    "board_ip": null
+  },
   "runtime": {
     "cycle_target_sec": 10,
     "fetch_concurrency": 8,
     "fetch_timeout_sec": 3,
     "fetch_retries": 1,
-    "results": { "max_mb": 300, "save_interval_sec": 300 }
+    "results": {
+      "max_mb": 300,
+      "save_interval_sec": 300
+    }
   },
   "detection": {
     "preset": "legacy",
     "model": null,
-    "classes": { "car": { "enabled": true, "conf": 0.45 } },
+    "classes": {
+      "car": {
+        "enabled": true,
+        "conf": 0.45
+      }
+    },
     "nms_iou": 0.45
   },
   "camera_profiles": {
@@ -21,8 +34,16 @@
       "auth": "digest",
       "user": "admin",
       "password": "",
-      "ref_size": [1280, 960],
-      "views": [[0, 0, 640, 480], [640, 0, 640, 480]]
+      "views": [[0, 0, 0.5, 0.5], [0.5, 0, 0.5, 0.5]],
+      "lenses": 1
+    },
+    "IDIS 렌즈 2개": {
+      "snapshot_url": "http://{ip}:{port}/cgi-bin/webSetup.cgi?action=videoStreamSnapshot&mode=1&streamIndex=2&channel={channel}",
+      "auth": "digest",
+      "user": "admin",
+      "password": "",
+      "lenses": 2,
+      "views": [[0, 0, 1, 1]]
     }
   },
   "cameras": [
@@ -32,11 +53,11 @@
       "profile": "2분할 카메라",
       "board": "B1-A",
       "slots": [
-        { "no": 1, "type": "normal", "line": [[136, 236], [175, 198]] },
-        { "no": 2, "type": "normal", "line": [[369, 244], [342, 193]] },
-        { "no": 3, "type": "normal", "line": [[778, 225], [805, 190]] },
-        { "no": 4, "type": "normal", "line": [[960, 228], [970, 184]] },
-        { "no": 5, "type": "normal", "line": [[1132, 227], [1104, 177]] }
+        { "no": 1, "type": "normal", "lens": 0, "line": [[0.1062, 0.2458], [0.1367, 0.2062]] },
+        { "no": 2, "type": "normal", "lens": 0, "line": [[0.2883, 0.2542], [0.2672, 0.201]] },
+        { "no": 3, "type": "normal", "lens": 0, "line": [[0.6078, 0.2344], [0.6289, 0.1979]] },
+        { "no": 4, "type": "normal", "lens": 0, "line": [[0.75, 0.2375], [0.7578, 0.1917]] },
+        { "no": 5, "type": "normal", "lens": 0, "line": [[0.8844, 0.2365], [0.8625, 0.1844]] }
       ]
     }
   ],
@@ -46,5 +67,10 @@
     "path": "/api/camerastatuses",
     "timeout_sec": 2
   },
-  "indicator": { "enabled": false }
+  "indicator": {
+    "enabled": false,
+    "protocol": "idis",
+    "led_type": "internal",
+    "resend_sec": 60
+  }
 }

@@ -3,7 +3,7 @@
 환경변수
   PARKAI_CONFIG   설정 파일 (기본 /var/lib/parkai/config.json)
   PARKAI_RUN_DIR  워커 상태/최신 이미지 (기본 /run/parkai)
-  PARKAI_SAMPLES  카메라에 접속할 수 없을 때 쓸 샘플 이미지 폴더 (<폴더>/<카메라IP>/*.jpg)
+  PARKAI_SAMPLES  카메라에 접속할 수 없을 때 쓸 샘플 이미지 폴더 (<폴더>/<카메라IP>/[ch<렌즈>/]*.jpg)
 """
 
 from __future__ import annotations
@@ -13,19 +13,19 @@ import os
 from pathlib import Path
 from urllib.parse import quote
 
-import cv2
-import numpy as np
 import requests
 from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
+from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
 from .. import __version__
-from ..core.config import AppConfig, load_config
+from ..core.config import LED_RGB, AppConfig, load_config
 from ..core.system import board_ip, board_model, device_id, resources
+from ..outputs.indicator import led_url, return_code
 from ..outputs.server import build_payload
-from ..worker.sources import IMAGE_EXT, HttpSnapshotSource, SourceError
+from ..worker.sources import IMAGE_EXT, HttpSnapshotSource, SourceError, image_media_type, replay_folder
 
 CONFIG = Path(os.environ.get("PARKAI_CONFIG", "/var/lib/parkai/config.json"))
 RUN_DIR = Path(os.environ.get("PARKAI_RUN_DIR", "/run/parkai"))
@@ -142,53 +142,38 @@ def export_config(passwords: bool = False):
 # ---------- 카메라 영상 ----------
 
 
-def _sample_image(ip: str) -> Path | None:
+def _sample_image(ip: str, lens: int) -> Path | None:
     if SAMPLES is None:
         return None
-    d = SAMPLES / ip
+    d = replay_folder(SAMPLES, ip, lens)
     files = sorted(p for p in d.glob("*") if p.suffix.lower() in IMAGE_EXT) if d.is_dir() else []
     return files[-1] if files else None
-
-
-def _crop_views(data: bytes, cfg: AppConfig, cam) -> bytes:
-    """분석 영역(views)만 남기고 잘라낸다 (모니터링 화면용)."""
-    img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
-    profile = cfg.camera_profiles[cam.profile]
-    if img is None or not profile.views:
-        return data
-    ref_w, ref_h = cfg.camera_ref_size(cam)
-    h, w = img.shape[:2]
-    sx, sy = w / ref_w, h / ref_h
-    x0 = min(v[0] for v in profile.views)
-    y0 = min(v[1] for v in profile.views)
-    x1 = max(v[0] + v[2] for v in profile.views)
-    y1 = max(v[1] + v[3] for v in profile.views)
-    crop = img[round(y0 * sy) : round(y1 * sy), round(x0 * sx) : round(x1 * sx)]
-    ok, buf = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, 80])
-    return buf.tobytes() if ok else data
 
 
 @app.get("/api/v1/cameras/{ip}/snapshot")
 def snapshot(
     ip: str,
+    lens: int = Query(0, ge=0),
     source: str = Query("auto", pattern="^(auto|live|sample)$"),
-    crop: bool = False,
 ):
-    """스냅샷. auto: 카메라 실패 시 샘플 이미지. crop: 분석 영역만."""
+    """렌즈 하나의 스냅샷 (받은 원본 그대로). auto: 카메라 실패 시 샘플 이미지.
+    화면이 분석 영역만 잘라 보여 주므로 여기서는 다시 인코딩하지 않는다."""
     cfg = _cfg()
     cam = _camera(cfg, ip)
+    if lens >= cfg.camera_lenses(cam):
+        raise HTTPException(404, f"렌즈 {lens + 1}이 없습니다")
     error = None
     data = None
     headers = {"Cache-Control": "no-store"}
     if source in ("auto", "live"):
         profile = cfg.camera_profiles[cam.profile]
         try:
-            data, _ = HttpSnapshotSource(cam, profile, cfg.runtime.fetch_timeout_sec, 0).fetch()
+            data, _ = HttpSnapshotSource(cam, profile, cfg.runtime.fetch_timeout_sec, 0, lens).fetch()
             headers["X-Parkai-Source"] = "live"
         except SourceError as e:
             error = str(e)
     if data is None and source in ("auto", "sample"):
-        sample = _sample_image(ip)
+        sample = _sample_image(ip, lens)
         if sample is not None:
             data = sample.read_bytes()
             headers["X-Parkai-Source"] = "sample"
@@ -196,17 +181,48 @@ def snapshot(
                 headers["X-Parkai-Error"] = quote(error[:300])
     if data is None:
         raise HTTPException(502, f"스냅샷을 가져오지 못했습니다: {error or '샘플 없음'}")
-    if crop:
-        data = _crop_views(data, cfg, cam)
-    return Response(data, media_type="image/jpeg", headers=headers)
+    return Response(data, media_type=image_media_type(data), headers=headers)
 
 
 @app.get("/api/v1/cameras/{ip}/latest")
-def latest_image(ip: str):
-    p = RUN_DIR / "latest" / f"{ip}.jpg"
+def latest_image(ip: str, lens: int = Query(0, ge=0)):
+    """워커가 받은 렌즈 원본 (매 사이클 갱신)."""
+    p = RUN_DIR / "latest" / f"{ip}_{lens}.jpg"
     if not p.exists() or p.parent != (RUN_DIR / "latest"):
         raise HTTPException(404)
-    return FileResponse(p, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+    media = image_media_type(p.read_bytes()[:16])
+    return FileResponse(p, media_type=media, headers={"Cache-Control": "no-store"})
+
+
+# ---------- 만공등 테스트 ----------
+
+
+@app.post("/api/v1/cameras/{ip}/led")
+def led_test(ip: str, color: str = Body(..., embed=True)):
+    """만공등에 색 하나를 바로 보내 본다 (설정의 만공등 사용 여부와 상관없이)."""
+    cfg = _cfg()
+    cam = _camera(cfg, ip)
+    if color not in LED_RGB:
+        raise HTTPException(422, f"색: {', '.join(LED_RGB)}")
+    profile = cfg.camera_profiles[cam.profile]
+    user, password = cfg.camera_account(cam)
+    auth = None
+    if profile.auth == "basic":
+        auth = HTTPBasicAuth(user, password)
+    elif profile.auth == "digest":
+        auth = HTTPDigestAuth(user, password)
+    url = led_url(cam, cfg.indicator, color)
+    try:
+        r = requests.get(url, auth=auth, timeout=cfg.runtime.fetch_timeout_sec)
+    except requests.RequestException as e:
+        return {"ok": False, "url": url, "error": str(e)}
+    code = return_code(r.text)
+    return {
+        "ok": r.status_code == 200 and code == 0,
+        "url": url,
+        "status_code": r.status_code,
+        "return_code": code,
+    }
 
 
 # ---------- 서버 전송 테스트 ----------
