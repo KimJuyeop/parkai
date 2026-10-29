@@ -37,10 +37,10 @@ python tools/autolabel.py 사진 --cfg yolo.cfg --weights yolov4_best.weights --
 ## 3. 학습/검증/시험 나누기
 
 ```sh
-python tools/train/split_dataset.py dataset --out dataset_split --by-folder
+python tools/train/split_dataset.py dataset --out dataset_split
 ```
 
-`--by-folder`: 같은 카메라 사진은 한쪽에만 들어간다. 카메라 폴더가 적으면 빼고 실행한다.
+같은 카메라(파일 이름의 IP)의 화면은 학습/검증/시험 중 한쪽에만 들어간다 (`--group camera`, 기본).
 
 ## 4. 학습 환경 설치 (WSL, 한 번)
 

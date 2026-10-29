@@ -3,14 +3,16 @@
     python tools/train/split_dataset.py dataset --out dataset_split
 
 결과: dataset_split/{train,val,test}/ 에 사진(.jpg)과 같은 이름의 라벨(.txt)이 함께 들어간다.
---by-folder: 같은 현장/카메라 폴더의 사진은 한 쪽에만 넣는다 (거의 같은 장면이 학습과 시험에
-             함께 들어가 점수가 부풀려지는 것을 막는다). 폴더(카메라)가 충분히 많을 때 쓴다.
+--group camera (기본): 파일 이름의 카메라 IP 가 같은 화면(시간대가 다른 사진, 두 렌즈, 조각)은 한 쪽에만 넣는다.
+             거의 같은 장면이 학습과 시험에 함께 들어가 점수가 부풀려지는 것을 막는다.
+--group folder: 같은 폴더끼리 / image: 화면마다 따로
 """
 
 from __future__ import annotations
 
 import argparse
 import random
+import re
 import shutil
 from collections import defaultdict
 from pathlib import Path
@@ -22,16 +24,22 @@ def main() -> None:
     ap.add_argument("--out", type=Path, default=Path("dataset_split"))
     ap.add_argument("--val", type=float, default=0.1)
     ap.add_argument("--test", type=float, default=0.1)
-    ap.add_argument("--by-folder", action="store_true")
+    ap.add_argument("--group", choices=["camera", "folder", "image"], default="camera")
     ap.add_argument("--seed", type=int, default=123)
     args = ap.parse_args()
 
     images = sorted((args.src / "images").glob("*.jpg"))
     rng = random.Random(args.seed)
-    # 파일 이름 = <현장>__<하위 폴더...>__<원본 이름>_v<화면>  → 마지막 조각을 뺀 앞부분이 폴더(카메라)
+    # 파일 이름 = <폴더>__<하위 폴더...>__<원본 이름>_v<화면>
+    ip_re = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
     groups: dict[str, list[Path]] = defaultdict(list)
     for p in images:
-        key = p.stem.rsplit("__", 1)[0] if args.by_folder else p.stem
+        if args.group == "camera" and (ips := ip_re.findall(p.stem)):
+            key = ips[-1]
+        elif args.group == "folder":
+            key = p.stem.rsplit("__", 1)[0]
+        else:
+            key = p.stem
         groups[key].append(p)
     keys = sorted(groups)
     rng.shuffle(keys)
