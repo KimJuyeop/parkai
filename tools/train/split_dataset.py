@@ -3,8 +3,8 @@
     python tools/train/split_dataset.py dataset --out dataset_split
 
 결과: dataset_split/{train,val,test}/ 에 사진(.jpg)과 같은 이름의 라벨(.txt)이 함께 들어간다.
---group camera (기본): 파일 이름의 카메라 IP 가 같은 화면(시간대가 다른 사진, 두 렌즈, 조각)은 한 쪽에만 넣는다.
-             거의 같은 장면이 학습과 시험에 함께 들어가 점수가 부풀려지는 것을 막는다.
+--group camera (기본): 파일 이름의 카메라 IP 가 같은 화면(시간대가 다른 사진, 두 렌즈, 조각)은
+             한 쪽에만 넣는다. 거의 같은 장면이 학습과 시험에 함께 들어가 점수가 부풀려지는 것을 막는다.
 --group folder: 같은 폴더끼리 / image: 화면마다 따로
 """
 
