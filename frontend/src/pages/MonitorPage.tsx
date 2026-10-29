@@ -92,7 +92,7 @@ function QuickSettings({ onClose, onGoSettings }: { onClose: () => void; onGoSet
     { id: "basic", title: "기본 정보", summary: `판정 주기 ${cfg.runtime.cycle_target_sec}초`, body: <BasicFields compact /> },
     { id: "server", title: "서버 전송", summary: cfg.server.enabled ? "사용 중" : "사용 안 함", body: <ServerFields compact /> },
     { id: "judge", title: "판정 방식", summary: PRESETS.find((p) => p.id === cfg.detection.preset)?.name ?? "", body: <JudgeFields compact /> },
-    { id: "lamp", title: "만공등 색", summary: "종류별", body: <LampFields /> },
+    { id: "lamp", title: "만공등", summary: cfg.indicator.enabled ? "사용 중" : "사용 안 함", body: <LampFields /> },
   ];
   return (
     <aside className="quick" aria-label="빠른 설정">

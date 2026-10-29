@@ -1,4 +1,4 @@
-import type { AppConfig, Camera, CameraStatus, IndicatorColor, Point, SlotTypeId, WorkerStatus } from "../api/types";
+import type { AppConfig, Camera, CameraStatus, IndicatorColor, Point, Rect, SlotTypeId, WorkerStatus } from "../api/types";
 
 export const MAX_SLOTS = 12;
 
@@ -12,7 +12,7 @@ export const SLOT_TYPES: { id: SlotTypeId; name: string; short: string; color: s
 export const slotType = (id: string) => SLOT_TYPES.find((t) => t.id === id) ?? SLOT_TYPES[0];
 
 /**
- * 만공등 색 (실제 지원 색은 카메라 사양 확인 후 조정).
+ * 만공등 색 (카메라로는 0xRRGGBB 로 보낸다: config.py LED_RGB).
  * 화면 테마가 아니라 실제 LED 색 정의라 tokens.css 규칙의 예외로 여기에 둔다.
  */
 export const INDICATOR_COLORS: { id: IndicatorColor; name: string; hex: string }[] = [
@@ -32,15 +32,14 @@ export const PRESETS = [
   { id: "custom", name: "직접 설정", desc: "판정 기준과 연속 일치 횟수를 직접 정합니다", tag: "현장 보정용" },
 ] as const;
 
-export function refSize(cfg: AppConfig, cam: Camera): [number, number] {
-  return cam.ref_size ?? cfg.camera_profiles[cam.profile]?.ref_size ?? [1280, 960];
+/** 카메라의 렌즈 수 (프로필 값) */
+export function lensCount(cfg: AppConfig, cam: Camera): number {
+  return Math.max(1, cfg.camera_profiles[cam.profile]?.lenses ?? 1);
 }
 
-/** 분석 영역 전체를 감싸는 사각형 [x, y, w, h]. 화면에 보여주는 영역이자 스냅샷 crop 영역 */
-export function viewsBBox(cfg: AppConfig, cam: Camera): [number, number, number, number] {
-  const [rw, rh] = refSize(cfg, cam);
-  const views = cfg.camera_profiles[cam.profile]?.views ?? [];
-  if (!views.length) return [0, 0, rw, rh];
+/** 분석 영역 전체를 감싸는 사각형 (렌즈 사진 대비 비율). 화면에 보여 주는 영역 */
+export function viewsBBox(views: Rect[]): Rect {
+  if (!views.length) return [0, 0, 1, 1];
   const x0 = Math.min(...views.map((v) => v[0]));
   const y0 = Math.min(...views.map((v) => v[1]));
   const x1 = Math.max(...views.map((v) => v[0] + v[2]));
@@ -110,4 +109,6 @@ export function ipRange(start: string, end: string): { ips: string[] } | { error
   return { ips };
 }
 
-export const fmtPoint = (p: Point) => `${Math.round(p[0])}, ${Math.round(p[1])}`;
+/** 선분 좌표 표시: 렌즈 사진 대비 % */
+export const fmtPoint = (p: Point) => `${(p[0] * 100).toFixed(1)}%, ${(p[1] * 100).toFixed(1)}%`;
+export const lensName = (lens: number) => `렌즈 ${lens + 1}`;

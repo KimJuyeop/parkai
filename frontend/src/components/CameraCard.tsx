@@ -1,27 +1,27 @@
 import type { Camera } from "../api/types";
 import { ago, ms, slotType, stateLabel } from "../lib/domain";
-import { CameraMedia } from "./CameraMedia";
+import { CameraLenses } from "./CameraLenses";
 import { Icon } from "./Icon";
 import { SlotChip } from "./ui";
-import { useCameraImage, useCameraView } from "./useCamera";
+import { useCameraImages, useCameraView } from "./useCamera";
 
 /** 모니터링 카드: 영상(누르면 크게 보기) · 칸 칩 · 처리 시간 · 선 편집 */
 export function CameraCard({ cam, onOpen, onEdit }: { cam: Camera; onOpen: () => void; onEdit: () => void }) {
   const view = useCameraView(cam)!;
-  const img = useCameraImage(cam);
+  const img = useCameraImages(cam);
   const cs = view.cs;
   const t = cs?.timings ?? {};
   const meta = view.offline
     ? cs?.error ?? "카메라 응답 없음"
     : cs ? `수신 ${ms(t.fetch)} · 추론 ${ms(t.infer)} · 차량 ${cs.boxes ?? "-"}대` : "판정 결과 없음 · 스냅샷 표시";
-  const msg = !img.src ? (img.error ? "카메라 연결 안 됨" : "불러오는 중…") : view.offline ? "만공등은 마지막 상태 유지" : null;
 
   return (
     <article className={`card${view.offline ? " card--offline" : ""}`}>
       <button type="button" className="card__media" onClick={onOpen} aria-label={`${cam.ip} 크게 보기`} title="크게 보기">
-        <CameraMedia
-          bbox={view.bbox} views={view.views} slots={cam.slots} states={view.states} imageSrc={img.src}
-          message={msg} dimMessage colorMode="state" label={`${cam.ip} 영상`}
+        <CameraLenses
+          cam={cam} urls={img.urls} bbox={view.bbox} views={view.views} states={view.states}
+          errorMessage={img.unsavedError ?? "카메라 연결 안 됨"} loadedMessage={view.offline ? "만공등은 마지막 상태 유지" : null}
+          dimMessage colorMode="state" label={`${cam.ip} 영상`}
           overlay={
             <div className="media__top">
               <span className="media__ip">{cam.ip}</span>

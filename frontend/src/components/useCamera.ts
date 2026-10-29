@@ -1,29 +1,26 @@
 import { useCallback, useMemo, useState } from "react";
 import { api } from "../api/client";
 import type { AppConfig, Camera, Point, SlotTypeId } from "../api/types";
-import { handledHere, nextSlotNo, slotState, slotType, viewsBBox } from "../lib/domain";
+import { handledHere, lensCount, nextSlotNo, slotState, slotType, viewsBBox } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 import type { EditHandlers } from "./CameraMedia";
-import { useLiveImage } from "./useLiveImage";
 
 /**
- * 카메라 영상 주소: 이 보드가 판정 중이면 워커의 최신 이미지(매 사이클 갱신),
- * 아니면 카메라 스냅샷을 한 번 (refresh() 로 다시).
+ * 렌즈별 영상 주소: 이 보드가 판정 중이면 워커의 최신 원본(매 사이클 갱신),
+ * 아니면 카메라 스냅샷을 한 번 (refresh() 로 다시). 저장하지 않은 카메라는 주소가 없다.
  */
-export function useCameraImage(cam: Camera | undefined) {
+export function useCameraImages(cam: Camera | undefined) {
   const { cfg, alive, status, savedIps } = useCfg();
   const [nonce, setNonce] = useState(() => Date.now());
   const live = !!cam && alive && handledHere(cfg, cam) && !!status.cameras[cam.ip];
   const unsaved = !!cam && !savedIps.has(cam.ip);
-  const url = !cam || unsaved ? null : live
-    ? api.latestUrl(cam.ip, new Date(status.cameras[cam.ip]?.updated_at ?? 0).getTime() || nonce)
-    : api.snapshotUrl(cam.ip, nonce);
-  const img = useLiveImage(url);
+  const t = live ? new Date(status.cameras[cam!.ip]?.updated_at ?? 0).getTime() || nonce : nonce;
+  const urls = !cam ? [] : Array.from({ length: lensCount(cfg, cam) }, (_, i) =>
+    unsaved ? null : live ? api.latestUrl(cam.ip, i, t) : api.snapshotUrl(cam.ip, i, t));
   return {
-    ...img,
-    error: unsaved ? "저장한 뒤 스냅샷을 불러올 수 있습니다" : img.error,
-    src: unsaved ? null : img.src,
+    urls,
     live,
+    unsavedError: unsaved ? "저장한 뒤 스냅샷을 불러올 수 있습니다" : null,
     refresh: () => setNonce(Date.now()),
   };
 }
@@ -34,9 +31,11 @@ export function useCameraView(cam: Camera | undefined) {
   return useMemo(() => {
     if (!cam) return null;
     const cs = alive ? status.cameras[cam.ip] : undefined;
+    const views = cfg.camera_profiles[cam.profile]?.views ?? [];
     return {
-      bbox: viewsBBox(cfg, cam),
-      views: cfg.camera_profiles[cam.profile]?.views ?? [],
+      bbox: viewsBBox(views),
+      views,
+      lenses: lensCount(cfg, cam),
       cs,
       offline: cs?.status === "no_response",
       states: (no: number) => slotState(cs, no),
@@ -78,7 +77,7 @@ export function useSlotEditing(ip: string | undefined) {
 
   const handlers: EditHandlers = {
     adding,
-    onAdd: (a: Point, b: Point) => {
+    onAdd: (lens: number, a: Point, b: Point) => {
       if (!ip || !cam) return;
       const no = nextSlotNo(cam);
       if (no == null) {
@@ -89,7 +88,7 @@ export function useSlotEditing(ip: string | undefined) {
       edit((d) => {
         const c = findCam(d, ip);
         if (!c) return;
-        c.slots.push({ no, type: newType, line: [a, b], name: "", judge: null });
+        c.slots.push({ no, type: newType, lens, line: [a, b], name: "", judge: null });
         c.slots.sort((x, y) => x.no - y.no);
       }, `${no}번 칸 추가 (${slotType(newType).name})`);
       setSelected(no);

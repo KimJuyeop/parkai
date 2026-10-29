@@ -1,9 +1,10 @@
 import { useState } from "react";
 import type { Camera } from "../api/types";
 import { MAX_SLOTS, SLOT_TYPES } from "../lib/domain";
-import { CameraMedia, type ColorMode } from "./CameraMedia";
+import { CameraLenses } from "./CameraLenses";
+import type { ColorMode } from "./CameraMedia";
 import { Icon } from "./Icon";
-import { useCameraImage, useCameraView, type useSlotEditing } from "./useCamera";
+import { useCameraImages, useCameraView, type useSlotEditing } from "./useCamera";
 
 type Editing = ReturnType<typeof useSlotEditing>;
 
@@ -15,11 +16,10 @@ export function LineEditor({ cam, editing, allowStateColor = true }: {
   cam: Camera; editing: Editing; allowStateColor?: boolean;
 }) {
   const view = useCameraView(cam)!;
-  const img = useCameraImage(cam);
+  const img = useCameraImages(cam);
   const [stateColor, setStateColor] = useState(false);
   const mode: ColorMode = stateColor ? "state" : "type";
-  const msg = cam.slots.length === 0 && !editing.adding ? "아직 칸이 없습니다 · 선 추가로 시작하세요"
-    : !img.src ? (img.error ?? "영상을 불러오는 중…") : null;
+  const first = cam.slots.length === 0 && !editing.adding ? "아직 칸이 없습니다 · 선 추가로 시작하세요" : null;
 
   return (
     <div className="panel panel--clip">
@@ -53,13 +53,14 @@ export function LineEditor({ cam, editing, allowStateColor = true }: {
           <Icon name="refresh" />스냅샷 새로고침
         </button>
       </div>
-      <CameraMedia
-        bbox={view.bbox} views={view.views} slots={cam.slots} states={view.states} imageSrc={img.src}
-        message={msg} colorMode={mode} selectedNo={editing.selected} onSelect={editing.setSelected}
+      <CameraLenses
+        cam={cam} urls={img.urls} bbox={view.bbox} views={view.views} states={view.states}
+        firstMessage={first} errorMessage={img.unsavedError ?? "영상을 불러오지 못했습니다"} loadingMessage="영상을 불러오는 중…"
+        colorMode={mode} selectedNo={editing.selected} onSelect={editing.setSelected}
         edit={editing.handlers} label={`${cam.ip} 스냅샷과 칸 선분`}
       />
       <div className="editor-hint">
-        선 추가 → 두 점 클릭 · 흰 점을 끌어 위치 수정 · 선이나 번호를 눌러 선택 후 옆에서 종류 변경 · Delete 로 삭제 · 최대 {MAX_SLOTS}칸 (현재 {cam.slots.length}칸)
+        선 추가 → {view.lenses > 1 ? "선을 그을 렌즈 영상에서 " : ""}두 점 클릭 · 흰 점을 끌어 위치 수정 · 선이나 번호를 눌러 선택 후 옆에서 종류 변경 · Delete 로 삭제 · 최대 {MAX_SLOTS}칸 (현재 {cam.slots.length}칸)
       </div>
     </div>
   );

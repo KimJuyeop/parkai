@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { ago, fmtPoint, slotType, stateLabel, stateTextClass } from "../lib/domain";
+import { ago, fmtPoint, lensName, slotType, stateLabel, stateTextClass } from "../lib/domain";
 import { useCfg } from "../state/AppState";
-import { CameraMedia } from "./CameraMedia";
+import { CameraLenses } from "./CameraLenses";
 import { Icon } from "./Icon";
 import { LineEditor } from "./LineEditor";
 import { CloseButton, Dialog, SlotChip, TypePicker } from "./ui";
-import { useCameraImage, useCameraView, useSlotEditing } from "./useCamera";
+import { useCameraImages, useCameraView, useSlotEditing } from "./useCamera";
 
 /**
  * 모니터링 큰 창: 보기 ↔ 선 편집. 고친 내용은 앱 전체의 "저장하지 않은 변경"에 쌓이고
@@ -18,7 +18,7 @@ export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startE
   const editing = useSlotEditing(ip);
   const cam = cfg.cameras.find((c) => c.ip === ip);
   const view = useCameraView(cam);
-  const img = useCameraImage(cam);
+  const img = useCameraImages(cam);
   if (!cam || !view) return null;
   const selNo = editing.selected ?? cam.slots[0]?.no ?? null;
   const sel = cam.slots.find((s) => s.no === selNo);
@@ -49,9 +49,9 @@ export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startE
           <LineEditor cam={cam} editing={editing} />
         </div>
       ) : (
-        <CameraMedia
-          bbox={view.bbox} views={view.views} slots={cam.slots} states={view.states} imageSrc={img.src}
-          message={!img.src ? (img.error ? "카메라 연결 안 됨" : "불러오는 중…") : null}
+        <CameraLenses
+          cam={cam} urls={img.urls} bbox={view.bbox} views={view.views} states={view.states}
+          errorMessage={img.unsavedError ?? "카메라 연결 안 됨"}
           colorMode="state" selectedNo={selNo} onSelect={editing.setSelected}
           dets={showDets ? view.cs?.dets : undefined} label={`${ip} 영상과 칸 선분`}
         />
@@ -89,7 +89,7 @@ export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startE
               </div>
             )}
             <div className="row">
-              <span className="mono meta spacer">{fmtPoint(sel.line[0])} → {fmtPoint(sel.line[1])}</span>
+              <span className="mono meta spacer">{view.lenses > 1 ? `${lensName(sel.lens)} · ` : ""}{fmtPoint(sel.line[0])} → {fmtPoint(sel.line[1])}</span>
               {editingMode && (
                 <button type="button" className="btn btn--danger" onClick={() => editing.remove(sel.no)}>
                   <Icon name="trash" size={14} />이 칸 삭제

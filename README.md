@@ -45,16 +45,17 @@ npm run build                      # → parkai/web/static
 
 ```sh
 python tools/dev.py            # 웹(8080) + 워커, 실제 카메라에서 스냅샷
-python tools/dev.py --replay   # samples/<카메라IP>/*.jpg 재생
+python tools/dev.py --replay   # samples/<카메라IP>/[ch<렌즈>/]*.jpg 재생
 ```
 
 - 브라우저에서 http://localhost:8080 → 모니터링 / 카메라 설정 / 시스템 설정
 - 화면을 고치는 중이면 `cd frontend && npm run dev` → http://localhost:5173 (API는 8080으로 프록시, 저장하면 바로 반영)
 - 설정 파일은 `data/config.json` (처음 실행 시 예시를 복사, Git에 올라가지 않음)
 - 카메라에 접속할 수 없으면 `samples/<카메라IP>/`의 마지막 이미지를 설정 화면에 보여줌
+  (렌즈가 2개인 카메라는 `samples/<카메라IP>/ch1/`, `ch2/`)
 - 모델이 없을 때는 fixture 검출기를 사용: 이미지 옆 `*.json`의 박스를 검출 결과로 쓰고, 없으면 검출 없음(전부 빈칸)
 
-fixture 박스 형식 (`samples/192.168.13.21/0001.json`, 원본 스냅샷 좌표):
+fixture 박스 형식 (`samples/192.168.13.21/0001.json`, 렌즈 사진 픽셀 좌표):
 
 ```json
 {"boxes": [[x1, y1, x2, y2, score], ...]}

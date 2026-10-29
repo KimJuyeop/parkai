@@ -19,7 +19,7 @@ STM32MP257F(NPU) 보드에서 IP카메라 스냅샷으로 주차면 차량 유�
 ```sh
 pip install -e ".[pc,dev]"
 cd frontend && npm install && npm run build && cd ..   # 화면 빌드 (처음 한 번, 화면 고친 뒤)
-python tools/dev.py --replay                           # samples/<카메라IP>/*.jpg 재생
+python tools/dev.py --replay                           # samples/<카메라IP>/[ch<렌즈>/]*.jpg 재생
 cd frontend && npm run dev                             # 화면 개발: http://localhost:5173 (/api 는 8080 프록시)
 ```
 
@@ -41,7 +41,8 @@ cd frontend && npm run build      # 타입 검사 포함
 - **웹 화면**
   - 색·글꼴 크기·간격은 `frontend/src/styles/tokens.css` 변수만 쓴다. 글꼴 크기: 제목 18 / 섹션 15 / 본문 14 / 버튼 13 / 라벨 12px, 컨트롤 높이 36px.
   - 설정 수정은 `edit(draft => …, "저장 바 설명")`으로만 하고, 저장 전까지 서버에 보내지 않는다.
-  - 선 편집기(`LineEditor`, `CameraMedia`)는 모니터링 큰 창과 카메라 설정이 함께 쓴다. 한쪽만 고치지 않는다.
+  - 선 편집기(`LineEditor`, `CameraLenses`, `CameraMedia`)는 모니터링 큰 창과 카메라 설정이 함께 쓴다. 한쪽만 고치지 않는다.
+  - 좌표는 렌즈 사진 대비 비율(0~1)이고 칸마다 렌즈 번호가 있다. 픽셀 좌표로 저장하지 않는다.
   - 판정 색: 차량 있음 = 주황 채움/실선, 빈칸 = 초록 테두리/점선, 판정 없음 = 회색 점선.
   - 주차 종류 색: 일반 초록, 경차 보라, 장애인 파랑, 전기차 파스텔 블루. 만공등 기본 색도 같은 짝(녹색·보라·파랑·하늘색), 만차는 항상 빨강.
   - 모니터링에는 이 보드가 판정하는 카메라만 보인다. "일부 화면 이상" 같은 세부 판단은 화면에 띄우지 않고, 카메라 상태는 정상/응답 없음만 보인다.

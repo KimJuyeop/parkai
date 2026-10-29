@@ -76,7 +76,7 @@
 
 /* 영상 + 선 */
 .media { position: relative; width: 100%; background: var(--media); overflow: hidden; user-select: none; }
-.media__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; display: block; }
+.media__img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; object-fit: fill; display: block; }
 .media__svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; touch-action: none; }
 .media__top { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-2-5); background: linear-gradient(var(--media-shade), transparent); color: var(--media-fg); pointer-events: none; }
 .media__ip { font-family: var(--font-mono); font-size: var(--fs-control); font-weight: 600; }
@@ -85,6 +85,10 @@
 .media__msg--dim { background: var(--media-veil); color: var(--media-veil-text); font-size: var(--fs-control); }
 .media__hint { position: absolute; left: 50%; bottom: var(--sp-3); transform: translateX(-50%); padding: var(--sp-1-5) var(--sp-3); border-radius: var(--radius); background: var(--media-pop); color: var(--media-fg); font-size: var(--fs-control); white-space: nowrap; pointer-events: none; }
 .media__label { position: absolute; font-size: var(--fs-tiny); color: var(--media-text); pointer-events: none; }
+.media__lens { position: absolute; left: var(--sp-2); bottom: var(--sp-1-5); padding: var(--sp-half) var(--sp-1-5); border-radius: var(--radius); background: var(--media-tag); color: var(--media-fg-dim); font-size: var(--fs-meta); pointer-events: none; }
+/* 렌즈 여러 개를 나란히 (모니터링 카드, 큰 창, 선 편집기) */
+.lenses { position: relative; display: flex; align-items: flex-start; gap: var(--sp-half); background: var(--media); }
+.lenses > .media { flex: 1 1 0; min-width: 0; }
 .slot-tag { font-family: var(--font-mono); font-weight: 600; fill: var(--media-fg); }
 
 /* 선 편집기 바 */

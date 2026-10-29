@@ -4,7 +4,8 @@ import { Icon } from "../components/Icon";
 import { LineEditor } from "../components/LineEditor";
 import { Check, CloseButton, Dialog, Field, TextInput, TypePicker } from "../components/ui";
 import { useCameraView, useSlotEditing } from "../components/useCamera";
-import { fmtPoint, handledHere, ipRange, slotType, stateLabel, stateTextClass } from "../lib/domain";
+import { api } from "../api/client";
+import { FULL_LAMP, INDICATOR_COLORS, fmtPoint, handledHere, ipRange, lensName, slotType, stateLabel, stateTextClass } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 
 export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string | null; setSelectedIp: (ip: string | null) => void }) {
@@ -68,7 +69,7 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
               <h1 className="title mono strong">{cam.ip}</h1>
               {view.offline && <span className="badge badge--bad">응답 없음</span>}
               {!cam.enabled && <span className="badge badge--off">사용 안 함</span>}
-              <span className="meta">{cfg.camera_profiles[cam.profile]?.ref_size.join("×")} 중 분석 영역 {cfg.camera_profiles[cam.profile]?.views.length ?? 0}개</span>
+              <span className="meta">{cam.profile} · 렌즈 {view.lenses}개 · 분석 영역 {view.views.length}개</span>
             </div>
             {camError && <p className="meta text-bad pre-line">카메라에서 영상을 받지 못했습니다: {camError}</p>}
 
@@ -78,12 +79,12 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
               <table className="table">
                 <thead>
                   <tr>
-                    <th scope="col">칸</th><th scope="col">주차 종류</th><th scope="col">시작 (x, y)</th><th scope="col">끝 (x, y)</th>
+                    <th scope="col">칸</th><th scope="col">주차 종류</th>{view.lenses > 1 && <th scope="col">렌즈</th>}<th scope="col">시작 (x, y)</th><th scope="col">끝 (x, y)</th>
                     <th scope="col">현재 판정</th><th scope="col"><span className="sr-only">삭제</span></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {cam.slots.length === 0 && <tr><td colSpan={6} className="meta">아직 칸이 없습니다</td></tr>}
+                  {cam.slots.length === 0 && <tr><td colSpan={view.lenses > 1 ? 7 : 6} className="meta">아직 칸이 없습니다</td></tr>}
                   {cam.slots.map((s) => {
                     const st = view.states(s.no);
                     return (
@@ -98,6 +99,7 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
                             </select>
                           </span>
                         </td>
+                        {view.lenses > 1 && <td className="muted">{lensName(s.lens)}</td>}
                         <td className="mono muted">{fmtPoint(s.line[0])}</td>
                         <td className="mono muted">{fmtPoint(s.line[1])}</td>
                         <td><span className={`chip chip--label${st === true ? " chip--occ" : st === false ? " chip--free" : ""}`}>{stateLabel(st)}</span></td>
@@ -147,6 +149,7 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
                   <Field label="비밀번호"><TextInput type="password" value={cam.password} onCommit={(v) => setCam((c) => { c.password = v; }, "비밀번호 변경")} /></Field>
                 </div>
               )}
+              <LedTest ip={cam.ip} />
               <button type="button" className="btn btn--danger" onClick={() => {
                 if (!window.confirm(`${cam.ip} 카메라를 삭제할까요? (저장해야 반영됩니다)`)) return;
                 edit((d) => { d.cameras = d.cameras.filter((c) => c.ip !== cam.ip); }, `${cam.ip} 삭제`);
@@ -158,6 +161,39 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
       )}
 
       {adding && <AddCameraDialog onClose={() => setAdding(false)} onAdded={(first) => setSelectedIp(first)} />}
+    </div>
+  );
+}
+
+/** 만공등 시험: 색 하나를 바로 보내 본다 (저장된 카메라 계정으로) */
+function LedTest({ ip }: { ip: string }) {
+  const { savedIps, toast } = useCfg();
+  const [result, setResult] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const send = async (color: string) => {
+    if (!savedIps.has(ip)) return toast("저장한 뒤 시험할 수 있습니다");
+    setBusy(true);
+    try {
+      const r = await api.ledTest(ip, color);
+      setResult(r.ok ? "보냄" : `실패: ${r.error ?? `HTTP ${r.status_code} · returnCode=${r.return_code ?? "없음"}`}`);
+    } catch (e) {
+      setResult(`실패: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const colors = [{ id: "red", name: FULL_LAMP.name, hex: FULL_LAMP.hex }, ...INDICATOR_COLORS];
+  return (
+    <div className="stack gap-1-5 divided">
+      <span className="field__label">만공등 시험</span>
+      <div className="row row--wrap gap-1">
+        {colors.map((c) => (
+          <button key={c.id} type="button" className="swatch" aria-label={`만공등 ${c.name}`} title={c.name} disabled={busy} onClick={() => send(c.id)}>
+            <span className="swatch__fill" style={{ background: c.hex }} />
+          </button>
+        ))}
+      </div>
+      {result && <span className={`meta ${result === "보냄" ? "text-free" : "text-bad"}`}>{result}</span>}
     </div>
   );
 }
@@ -204,7 +240,7 @@ function AddCameraDialog({ onClose, onAdded }: { onClose: () => void; onAdded: (
     edit((d) => {
       for (const ip of fresh) {
         d.cameras.push({ ip, port: Number(port) || 80, profile, own_account: false, user: "", password: "",
-          controller_ip: null, board: board.trim() || null, ref_size: null, enabled: true, slots: [] });
+          controller_ip: null, board: board.trim() || null, enabled: true, slots: [] });
       }
     }, `카메라 ${fresh.length}대 추가`);
     onAdded(fresh[0]);

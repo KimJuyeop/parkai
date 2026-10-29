@@ -18,8 +18,10 @@ src/
   lib/         domain.ts — 주차 종류·만공등 색·판정 프리셋, 분석 영역 계산, IP 범위, 판정 여부 규칙
   styles/      tokens.css (색·글꼴·간격 — 모든 값은 여기서), base.css (공통 컨트롤), layout.css (화면 배치)
   components/
-    CameraMedia     영상 + SVG 칸 선분 (보기 / 편집: 선 추가·끝점 끌기·선택·삭제)
-    LineEditor      도구 줄 + CameraMedia — 모니터링 큰 창과 카메라 설정이 같이 씀
+    CameraLenses    렌즈별 영상을 나란히 (렌즈마다 사진·칸·박스를 나눠 CameraMedia 로)
+    CameraMedia     렌즈 영상 하나 + SVG 칸 선분 (보기 / 편집: 선 추가·끝점 끌기·선택·삭제).
+                    설정 좌표는 렌즈 사진 대비 비율, 그릴 때 사진 픽셀로 환산
+    LineEditor      도구 줄 + CameraLenses — 모니터링 큰 창과 카메라 설정이 같이 씀
     useCamera       영상 주소(최신 이미지/스냅샷), 칸 편집 동작 (useSlotEditing)
     CameraCard      모니터링 카드
     CameraDialog    모니터링 큰 창 (보기 ↔ 선 편집)
