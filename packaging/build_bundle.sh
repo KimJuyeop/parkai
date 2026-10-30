@@ -23,6 +23,9 @@ test -f "$ROOT/parkai/web/static/index.html" || { echo "웹 화면 빌드 실패
 
 # 앱
 cp -r "$ROOT/parkai" "$ROOT/pyproject.toml" "$ROOT/README.md" "$STAGE/app/"
+# 보드에서 쓰는 점검 도구 (모델 비교 등). 설치 후 /opt/parkai/current/tools
+mkdir -p "$STAGE/app/tools"
+cp "$ROOT/tools/compare_judge.py" "$STAGE/app/tools/"
 mkdir -p "$STAGE/app/examples"
 cp "$ROOT/examples/config.example.json" "$STAGE/app/examples/config.default.json"
 
