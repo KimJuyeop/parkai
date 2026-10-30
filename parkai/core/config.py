@@ -303,6 +303,9 @@ def _migrate_v1(data: dict) -> None:
             prof["views"] = [[x / rw, y / rh, w / rw, h / rh] for x, y, w, h in prof["views"]]
         else:  # 예전 기본값: 1280x960 위 절반의 두 화면
             prof["views"] = [[0, 0, 0.5, 0.5], [0.5, 0, 0.5, 0.5]]
+    ind = data.get("indicator")
+    if isinstance(ind, dict) and ind.get("protocol") is None:  # 예전: 미정(null) → 기본값(idis)
+        ind.pop("protocol", None)
     for cam in data.get("cameras") or []:
         if not isinstance(cam, dict):
             continue

@@ -138,9 +138,11 @@ def test_v1_config_migrates_to_lens_ratios():
                     "slots": [{"no": 1, "line": [[64, 48], [320, 240]]}],
                 },
             ],
+            "indicator": {"enabled": False, "protocol": None},
         }
     )
     assert c.schema_version == 2
+    assert c.indicator.protocol == "idis"
     prof = c.camera_profiles["p"]
     assert prof.lenses == 1 and prof.views == [(0, 0, 0.5, 0.5), (0.5, 0, 0.5, 0.5)]
     for cam in c.cameras:  # 카메라별 기준 해상도도 반영
