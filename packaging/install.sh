@@ -42,7 +42,8 @@ cp -r "$HERE/app/." "$DEST/"
 echo "[3/5] Python 환경 (오프라인 wheel)"
 # 시스템 패키지(OpenCV, numpy, stai_mpu)를 그대로 쓰기 위해 --system-site-packages
 python3 -m venv --system-site-packages "$DEST/venv"
-"$DEST/venv/bin/pip" install --no-index --find-links "$HERE/wheels" "$DEST"
+# 소스 폴더가 아니라 미리 만든 wheel 을 설치한다 (소스 설치는 setuptools 가 필요한데 오프라인 번들에 없음)
+"$DEST/venv/bin/pip" install --no-index --find-links "$HERE/wheels" parkai
 
 echo "[4/5] 설정"
 if [ ! -f "$DATA/config.json" ]; then
