@@ -114,7 +114,18 @@ $HOME/ST/STEdgeAI/2.2/Utilities/linux/stedgeai generate --model quantized_model.
 | ONNX per-tensor | 실패 (E010) | - | - | 74.1 / 96.6 / 95.8 |
 | TFLite per-tensor | 됨 | 21.6ms | 98.7% | 72.5 / 96.1 / 94.5 |
 
-보드 목표(카메라 30대 x 화면 2개, 10초 사이클)에는 per-channel(60화면 x 118ms = 7초)이 빠듯해서 per-tensor 를 쓴다.
+(아래는 첫 학습 때 판단. 2026-11-03 렌즈 원본 학습 뒤로는 per-channel 을 쓴다 → 바로 아래 표)
+
+렌즈 원본 학습(full) 보드 실측, 렌즈 1장 (`tools/bench_model.py`, 워커 멈춤, 입력 변환·후처리 최적화 후):
+
+| 양자화 | 실행 | 전처리+입력 변환+출력+후처리 | 합계 | 38대 231칸 틀린 칸 (기준 0.85, 개선 방식) |
+| --- | --- | --- | --- | --- |
+| per-channel (GPU) | 118.5ms | 20.5ms | 139ms | 0 |
+| per-tensor (NPU) | 22.0ms | 15.0ms | 37ms | 9 (빈칸을 차로 8, 차를 놓침 1) |
+| (참고) 첫 학습 per-tensor | - | - | - | 5 |
+
+- 사진을 더 넣어 학습해도 per-tensor 는 나아지지 않았다 (양자화 방식 자체의 문제, 54/186 층이 depthwise)
+- per-channel 로 보드당 렌즈 2개 카메라 약 36대 (10초 ÷ 0.28초). NPU 로 가려면 양자화 인식 학습(QAT)이나 다른 모델이 필요하다
 
 parkai 후처리로 잰 시험 198화면 (정답 745대, `tools/eval_models.py`, 기준값 0.5):
 
