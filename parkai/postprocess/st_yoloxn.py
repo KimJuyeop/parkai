@@ -51,6 +51,11 @@ def postprocess(outputs, pkg, conf: dict[str, float], nms_iou: float) -> list[Bo
     # 각 클래스를 판정용 이름으로 바꾸고 기준값을 정한다 (설정에 없는 클래스는 1.1로 제외)
     judged = [class_map.get(n, n) for n in names]
     thr_by_cls = np.array([conf.get(j, 1.1) for j in judged], np.float32)
+    lo = float(thr_by_cls.min())
+    if lo > 1.0:  # 판정할 클래스가 없다
+        return []
+    # sigmoid(obj) >= lo  <=>  obj >= log(lo / (1 - lo))  (경계 반올림 오차만큼 여유)
+    obj_min = -np.inf if lo <= 0 else np.inf if lo >= 1 else float(np.log(lo / (1 - lo))) - 1e-4
 
     all_xyxy, all_scores, all_cls = [], [], []
     for t, q in zip(outputs, quant, strict=False):
@@ -62,22 +67,27 @@ def postprocess(outputs, pkg, conf: dict[str, float], nms_iou: float) -> list[Bo
         f = _to_nhwc(t, ch)
         gh, gw = f.shape[:2]
         f = f.reshape(gh, gw, na, 5 + nc)
-        score = _sigmoid(f[..., 4:5]) * _softmax(f[..., 5:])  # (gh, gw, A, C)
+        # 점수 = sigmoid(obj) x softmax <= sigmoid(obj) 이므로, obj 가 가장 낮은 기준값에도 못 미치는 칸은
+        # 미리 뺀다 (결과는 같고 보드 CPU 에서 후처리가 빨라진다)
+        gy, gx, ga = np.nonzero(f[..., 4] >= obj_min)
+        if gy.size == 0:
+            continue
+        p = f[gy, gx, ga]
+        score = _sigmoid(p[:, 4:5]) * _softmax(p[:, 5:])  # (N, C)
         cls_idx = score.argmax(-1)
-        best = np.take_along_axis(score, cls_idx[..., None], -1)[..., 0]
+        best = score[np.arange(len(score)), cls_idx]
         m = best >= thr_by_cls[cls_idx]
         if not m.any():
             continue
-        gy, gx, ga = np.nonzero(m)
-        p = f[gy, gx, ga]
+        gy, gx, ga, p, best, cls_idx = gy[m], gx[m], ga[m], p[m], best[m], cls_idx[m]
         cx = (_sigmoid(p[:, 0]) + gx) / gw * in_w
         cy = (_sigmoid(p[:, 1]) + gy) / gh * in_h
         w = np.exp(p[:, 2]) * anchors[ga, 0] * in_w
         h = np.exp(p[:, 3]) * anchors[ga, 1] * in_h
         xyxy = np.stack([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2], 1)
         all_xyxy.append(np.clip(xyxy, 0, [in_w, in_h, in_w, in_h]))
-        all_scores.append(best[m])
-        all_cls.append(cls_idx[m])
+        all_scores.append(best)
+        all_cls.append(cls_idx)
 
     if not all_xyxy:
         return []

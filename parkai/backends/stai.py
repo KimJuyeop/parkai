@@ -3,7 +3,7 @@
 API 는 X-LINUX-AI 6.2 의 ST 예제(object-detection/ssd_mobilenet_pp.py)와 같은 방식으로 쓴다:
     stai_mpu_network(model_path, use_hw_acceleration) · get_input_infos() · get_num_outputs()
     set_input(0, x) · run() · get_output(index=i)
-모델: TFLite per-tensor int8 → ST Edge AI Core 2.2 로 만든 .nb (per-channel 은 대부분 GPU 로 넘어가 느리다)
+모델: per-tensor(NPU, 빠름) 또는 per-channel(대부분 GPU, 정확) .nb — docs/training.md 7절
 보드 설치: apt 저장소 extra.packages.openstlinux.st.com/AINPU/6.2 의 stai-mpu-ovx, python3-stai-mpu.
 """
 
@@ -31,6 +31,31 @@ def _describe(info) -> str:
     return f"{tuple(info.get_shape())} {np.dtype(info.get_dtype()).name} q={_qparams(info)}"
 
 
+def to_input(x: np.ndarray, dtype: np.dtype, q: tuple[float, int] | None, input_scale: float) -> np.ndarray:
+    """픽셀(uint8) → 모델 입력. 흔한 두 경우는 곱셈 없이 바꾼다 (A35 에서 실수 변환이 렌즈당 45~50ms 걸림).
+
+    - uint8, 눈금 1/255 · 0       : 그대로 (TFLite 에서 만든 .nb)
+    - int8,  눈금 1/255 · -128    : 픽셀 - 128 = 맨 위 비트 뒤집기 (ONNX 에서 만든 .nb)
+    """
+    dtype = np.dtype(dtype)
+    if dtype == np.float32:
+        return (x.astype(np.float32) / input_scale).astype(np.float32)
+    if q is None:
+        return np.ascontiguousarray(x, dtype=dtype)
+    scale, zp = q
+    # 눈금이 '픽셀/255' 와 같은지 (.nb 에는 float32 로 저장돼 1/255 와 끝자리가 다르다)
+    unit = abs(scale * input_scale - 1) < 1e-4
+    if unit and x.dtype == np.uint8 and dtype == np.uint8 and zp == 0:
+        return np.ascontiguousarray(x)
+    if unit and x.dtype == np.uint8 and dtype == np.int8 and zp == -128:
+        y = np.array(x, dtype=np.uint8, order="C")  # 복사본 (배치 바꾸기도 여기서)
+        np.bitwise_xor(y, 0x80, out=y)
+        return y.view(np.int8)
+    info = np.iinfo(dtype)
+    v = x.astype(np.float32) / input_scale
+    return np.clip(np.round(v / scale + zp), info.min, info.max).astype(dtype)
+
+
 class StaiDetector(ModelDetector):
     name = "stai"
 
@@ -42,7 +67,6 @@ class StaiDetector(ModelDetector):
         self.in_info = self.net.get_input_infos()[0]
         self.out_infos = self.net.get_output_infos()
         self.n_outputs = self.net.get_num_outputs()
-        self.float_input = self.in_info.get_dtype() == np.float32
         # 입력 배치는 .nb 자체에서 읽는다: TFLite 에서 만든 .nb 는 NHWC, ONNX 에서 만든 것은 NCHW 일 수 있어
         # 같은 모델 폴더의 model.onnx(PC용)와 다를 수 있다
         shape = tuple(self.in_info.get_shape())
@@ -61,16 +85,7 @@ class StaiDetector(ModelDetector):
         x = np.expand_dims(tensor, 0)
         if self.nchw:
             x = x.transpose(0, 3, 1, 2)
-        if self.float_input:
-            x = x.astype(np.float32) / float(self.pkg.extra.get("input_scale", 255.0))
-        elif self.in_q is not None and self.in_q != (1 / 255, 0):
-            # 정수 입력의 눈금이 '픽셀/255' 와 다르면 (예: int8, zero_point -128) 그 눈금으로 바꾼다
-            scale, zp = self.in_q
-            info = np.iinfo(self.in_dtype)
-            v = x.astype(np.float32) / float(self.pkg.extra.get("input_scale", 255.0))
-            x = np.clip(np.round(v / scale + zp), info.min, info.max).astype(self.in_dtype)
-        else:
-            x = x.astype(self.in_dtype)
+        x = to_input(x, self.in_dtype, self.in_q, float(self.pkg.extra.get("input_scale", 255.0)))
         self.net.set_input(0, np.ascontiguousarray(x))
         self.net.run()
         outs = []

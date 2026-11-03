@@ -49,3 +49,23 @@ def test_st_yoloxn_anchor_decode_nchw():
     assert (round(b.x1), round(b.y1), round(b.x2), round(b.y2)) == (120, 120, 360, 360)
     # car 기준값이 없으면(설정에 없는 클래스) 아무것도 안 나온다
     assert get_postprocessor("st_yoloxn")(outs, pkg, {}, 0.45) == []
+
+
+def test_stai_fast_input_matches_general_quantization():
+    """보드 입력 변환의 빠른 길(그대로 / 비트 뒤집기)이 일반 양자화 식과 같은 값을 낸다."""
+    from parkai.backends.stai import to_input
+
+    rng = np.random.default_rng(0)
+    x = rng.integers(0, 256, (1, 32, 32, 3), dtype=np.uint8)
+    scale = float(np.float32(1 / 255))  # .nb 에 float32 로 저장된 눈금
+
+    def general(a, dtype, zp):
+        info = np.iinfo(dtype)
+        v = a.astype(np.float32) / 255.0
+        return np.clip(np.round(v / scale + zp), info.min, info.max).astype(dtype)
+
+    nchw = x.transpose(0, 3, 1, 2)
+    fast = to_input(nchw, np.dtype(np.int8), (scale, -128), 255.0)
+    assert fast.dtype == np.int8 and fast.flags.c_contiguous
+    assert np.array_equal(fast, general(nchw, np.int8, -128))
+    assert np.array_equal(to_input(x, np.dtype(np.uint8), (scale, 0), 255.0), general(x, np.uint8, 0))
