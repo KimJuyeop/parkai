@@ -39,21 +39,24 @@ def main() -> None:
     steps = ("전처리", "입력 변환", "실행", "출력 읽기", "후처리", "합계")
     t: dict[str, list[float]] = {k: [] for k in steps}
     net = getattr(det, "net", None)
-    if net is not None:  # stai: net.run 과 출력 읽기를 따로 잰다
-        run, get_output = net.run, net.get_output
+    if net is not None:  # stai: net.run 과 출력 읽기를 따로 잰다 (원래 객체는 바꾸지 않고 감싼다)
 
-        def timed_run():
-            s = time.perf_counter()
-            run()
-            t["실행"].append(time.perf_counter() - s)
+        class Timed:
+            def __getattr__(self, name):
+                return getattr(net, name)
 
-        def timed_get(*a, **k):
-            s = time.perf_counter()
-            o = get_output(*a, **k)
-            t["출력 읽기"][-1] += time.perf_counter() - s
-            return o
+            def run(self):
+                s = time.perf_counter()
+                net.run()
+                t["실행"].append(time.perf_counter() - s)
 
-        net.run, net.get_output = timed_run, timed_get
+            def get_output(self, *a, **k):
+                s = time.perf_counter()
+                o = net.get_output(*a, **k)
+                t["출력 읽기"][-1] += time.perf_counter() - s
+                return o
+
+        det.net = Timed()
 
     n_boxes = 0
     for _ in range(args.n):
