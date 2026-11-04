@@ -70,6 +70,7 @@ def main() -> None:
     ap.add_argument("--minutes", type=float, default=60)
     ap.add_argument("--work", type=Path, default=Path("/tmp/parkai_load"))
     args = ap.parse_args()
+    sys.stdout.reconfigure(line_buffering=True)  # nohup 으로 파일에 쓸 때도 줄마다 바로 보이게
     logging.basicConfig(level=logging.WARNING, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     cfg = load_config(args.config)
