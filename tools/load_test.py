@@ -69,7 +69,12 @@ def main() -> None:
     ap.add_argument("--backend", default="auto")
     ap.add_argument("--minutes", type=float, default=60)
     ap.add_argument("--work", type=Path, default=Path("/tmp/parkai_load"))
+    ap.add_argument(
+        "--switch-interval", type=float, help="파이썬 스레드 전환 간격(초, 기본 0.005). 추론 대기 시험용"
+    )
     args = ap.parse_args()
+    if args.switch_interval:
+        sys.setswitchinterval(args.switch_interval)
     sys.stdout.reconfigure(line_buffering=True)  # nohup 으로 파일에 쓸 때도 줄마다 바로 보이게
     logging.basicConfig(level=logging.WARNING, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -80,7 +85,10 @@ def main() -> None:
     worker = Worker(args.config, detector, args.work / "run", args.work / "data", args.replay)
     cams = worker.cfg.cameras_for_board()
     n_img = sum(worker.cfg.camera_lenses(c) for c in cams)
-    print(f"카메라 {len(cams)}대, 사진 {n_img}장/사이클, 모델 {model} ({detector.name}), {args.minutes:g}분")
+    print(
+        f"카메라 {len(cams)}대, 사진 {n_img}장/사이클, 모델 {model} ({detector.name}), {args.minutes:g}분, "
+        f"스레드 전환 {sys.getswitchinterval() * 1000:g}ms"
+    )
 
     rows: list[dict] = []
     end = time.monotonic() + args.minutes * 60

@@ -22,9 +22,12 @@ class ImageStatus(StrEnum):
 
 
 def check_view(gray: np.ndarray, cfg: ImageCheckCfg) -> ImageStatus:
-    if float(gray.mean()) < cfg.black_mean:
+    # 모두 OpenCV 안에서 계산한다 (numpy 실수 배열을 만들지 않아 보드 CPU 부담과 스레드 간 대기가 적다)
+    if cv2.mean(gray)[0] < cfg.black_mean:
         return ImageStatus.BLACK
-    if float(cv2.Laplacian(gray, cv2.CV_64F).var()) < cfg.blur_var:
+    # 8비트 사진의 라플라시안은 -1020~1020 이라 16비트 정수에 정확히 담긴다 (실수로 구한 값과 같음)
+    _, std = cv2.meanStdDev(cv2.Laplacian(gray, cv2.CV_16S))
+    if float(std[0, 0]) ** 2 < cfg.blur_var:
         return ImageStatus.BLUR
     return ImageStatus.OK
 

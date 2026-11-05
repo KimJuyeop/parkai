@@ -238,3 +238,23 @@ def test_unknown_slot_type_rejected():
                 ],
             }
         )
+
+
+def test_image_check_blur_matches_float_laplacian():
+    """흐림 판단을 정수 라플라시안으로 바꿔도 예전(실수) 계산과 값이 같다."""
+    import cv2
+
+    from parkai.core.config import ImageCheckCfg
+    from parkai.core.image_check import ImageStatus, check_view
+
+    rng = np.random.default_rng(1)
+    sharp = rng.integers(0, 256, (72, 128), dtype=np.uint8)
+    flat = np.full((72, 128), 128, np.uint8)
+    for g in (sharp, flat):
+        old = float(cv2.Laplacian(g, cv2.CV_64F).var())
+        _, std = cv2.meanStdDev(cv2.Laplacian(g, cv2.CV_16S))
+        assert abs(float(std[0, 0]) ** 2 - old) <= 1e-9 * max(old, 1)
+    cfg = ImageCheckCfg()
+    assert check_view(sharp, cfg) == ImageStatus.OK
+    assert check_view(flat, cfg) == ImageStatus.BLUR
+    assert check_view(np.zeros((72, 128), np.uint8), cfg) == ImageStatus.BLACK
