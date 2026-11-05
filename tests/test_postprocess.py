@@ -51,6 +51,32 @@ def test_st_yoloxn_anchor_decode_nchw():
     assert get_postprocessor("st_yoloxn")(outs, pkg, {}, 0.45) == []
 
 
+def test_yolov2t_grid_anchor_decode_nhwc():
+    """ST yolov2t: 출력 1개(NHWC), 앵커는 격자 단위 → 크기 = exp(tw) * 앵커 / 격자 수 * 입력."""
+    anchors = [[0.076023, 0.258508], [0.748154, 0.857092]]
+    pkg = ModelPackage(
+        path=None,
+        arch="yolov2t",
+        input_size=(480, 480),
+        classes=["car"],
+        extra={"anchors": anchors, "anchor_units": "grid"},
+    )
+    g, na = 15, 2
+    t = np.full((1, g, g, na * 6), -10.0, np.float32)
+    # (y=3, x=10) 칸, 앵커 1: 중심 x = (0.5+10)/15*480 = 336, y = (0.5+3)/15*480 = 112
+    # 크기 = exp(2) * 앵커 / 15 * 480
+    base = 1 * 6
+    t[0, 3, 10, base : base + 4] = [0, 0, 2.0, 2.0]
+    t[0, 3, 10, base + 4] = 10.0
+    t[0, 3, 10, base + 5] = 10.0
+    boxes = get_postprocessor("yolov2t")([t], pkg, {"car": 0.5}, 0.45)
+    assert len(boxes) == 1
+    b = boxes[0]
+    w, h = np.exp(2.0) * 0.748154 / 15 * 480, np.exp(2.0) * 0.857092 / 15 * 480
+    assert abs((b.x1 + b.x2) / 2 - 336) < 1e-3 and abs((b.y1 + b.y2) / 2 - 112) < 1e-3
+    assert abs((b.x2 - b.x1) - w) < 1e-3 and abs((b.y2 - b.y1) - h) < 1e-3
+
+
 def test_stai_fast_input_matches_general_quantization():
     """보드 입력 변환의 빠른 길(그대로 / 비트 뒤집기)이 일반 양자화 식과 같은 값을 낸다."""
     from parkai.backends.stai import to_input

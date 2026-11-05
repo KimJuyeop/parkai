@@ -1,4 +1,4 @@
-"""ST Model Zoo st_yoloxn 후처리 (앵커 방식 YOLO 헤드, 출력 3개).
+"""ST Model Zoo st_yoloxn · yolov2t 후처리 (앵커 방식 YOLO 헤드, 출력 3개 / 1개).
 
 출력: 크기별 3개 텐서, 각 (1, A*(5+C), H, W) [ONNX, NCHW] 또는 (1, H, W, A*(5+C)) [NHWC].
 채널은 앵커 순서대로 [tx, ty, tw, th, obj, cls...] 가 A번 이어진다.
@@ -8,7 +8,9 @@
     점수 = sigmoid(obj) * softmax(cls)
 
 model.json:
-    anchors      [[w, h], ...] 입력 대비 비율 (ST 설정 파일의 postprocessing.yolo_anchors)
+    anchors      [[w, h], ...] ST 설정 파일의 postprocessing.yolo_anchors
+    anchor_units "input"(기본, st_yoloxn: 입력 대비 비율) | "grid"(yolov2t: 격자 크기로 나눔 →
+                 ST postprocess.yolo_head 의 box_wh = exp(twh) * anchors / conv_dims)
     class_map    {"truck": "car", "bus": "car"}  여러 클래스를 하나로 묶어 그 클래스 기준값으로 판단
     output_quant [{"scale", "zero_point"}, ...]  NPU 출력이 정수일 때 (출력 순서대로)
 """
@@ -39,6 +41,7 @@ def _to_nhwc(t: np.ndarray, ch: int) -> np.ndarray:
     raise ValueError(f"st_yoloxn 출력 모양을 알 수 없습니다: {t.shape} (채널 {ch})")
 
 
+@register("yolov2t")
 @register("st_yoloxn")
 def postprocess(outputs, pkg, conf: dict[str, float], nms_iou: float) -> list[Box]:
     names = pkg.classes
@@ -48,6 +51,7 @@ def postprocess(outputs, pkg, conf: dict[str, float], nms_iou: float) -> list[Bo
     quant = pkg.extra.get("output_quant") or [None] * len(outputs)
     in_w, in_h = pkg.input_size
     class_map = pkg.extra.get("class_map", {})
+    grid_units = pkg.extra.get("anchor_units", "input") == "grid"
     # 각 클래스를 판정용 이름으로 바꾸고 기준값을 정한다 (설정에 없는 클래스는 1.1로 제외)
     judged = [class_map.get(n, n) for n in names]
     thr_by_cls = np.array([conf.get(j, 1.1) for j in judged], np.float32)
@@ -82,8 +86,11 @@ def postprocess(outputs, pkg, conf: dict[str, float], nms_iou: float) -> list[Bo
         gy, gx, ga, p, best, cls_idx = gy[m], gx[m], ga[m], p[m], best[m], cls_idx[m]
         cx = (_sigmoid(p[:, 0]) + gx) / gw * in_w
         cy = (_sigmoid(p[:, 1]) + gy) / gh * in_h
-        w = np.exp(p[:, 2]) * anchors[ga, 0] * in_w
-        h = np.exp(p[:, 3]) * anchors[ga, 1] * in_h
+        aw, ah = anchors[ga, 0], anchors[ga, 1]
+        if grid_units:
+            aw, ah = aw / gw, ah / gh
+        w = np.exp(p[:, 2]) * aw * in_w
+        h = np.exp(p[:, 3]) * ah * in_h
         xyxy = np.stack([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2], 1)
         all_xyxy.append(np.clip(xyxy, 0, [in_w, in_h, in_w, in_h]))
         all_scores.append(best)
