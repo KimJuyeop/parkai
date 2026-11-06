@@ -14,27 +14,27 @@
   "interpolation": "nearest",
   "anchors": [
     [
-      0.076023,
-      0.258508
+      1.5469,
+      1.6458
     ],
     [
-      0.163031,
-      0.413531
+      2.2734,
+      2.7917
     ],
     [
-      0.234769,
-      0.702585
+      3.0352,
+      3.5417
     ],
     [
-      0.427054,
-      0.715892
+      2.6016,
+      4.7292
     ],
     [
-      0.748154,
-      0.857092
+      4.2012,
+      6.5729
     ]
   ],
   "anchor_units": "grid",
   "class_map": {},
-  "note": "ST yolov2t(COCO 사람 사전학습)를 현장 차량 1클래스로 추가 학습. 보드용 TFLite per-tensor int8 (입력 uint8 NHWC, 1/255 내장, 출력 1개 15x15x30 float) → ST Edge AI Core 2.2 로 model.nb"
+  "note": "ST yolov2t(COCO 사람 사전학습)를 현장 차량 1클래스로 추가 학습. 보드용 TFLite per-tensor int8 (입력 uint8 NHWC, 1/255 내장, 출력 1개 15x15x30 float) → ST Edge AI Core 2.2 로 model.nb. 앵커는 학습 설정(tools/train/yolov2t_finetune.yaml)과 같아야 함"
 }

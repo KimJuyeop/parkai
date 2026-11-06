@@ -82,7 +82,7 @@ data_augmentation:
 training:
   dropout: null
   batch_size: 16                # 8GB GPU 기준. 메모리 부족이면 8
-  epochs: 150
+  epochs: 300                   # 첫 학습(150회)은 마지막 회차가 최고점이라 덜 끝났었다
   optimizer:
     Adam:
       learning_rate: 0.001
@@ -90,19 +90,21 @@ training:
     LRWarmupCosineDecay:
       initial_lr: 1.0e-05
       warmup_steps: 5
-      max_lr: 0.0005            # 처음부터가 아니라 이어서 학습이라 원래(0.00125)보다 낮게
+      max_lr: 0.001             # 머리는 새로 학습 (ST 원래 0.00125, 배치 64)
       hold_steps: 10
-      decay_steps: 135
+      decay_steps: 285
       end_lr: 1.0e-06
     EarlyStopping:
       monitor: val_loss
-      patience: 30
+      patience: 60
       restore_best_weights: true
       verbose: 1
 
 postprocessing:
-  # 출발점 모델과 같게: Model Zoo 의 yolov2t 기본 앵커 5개 (격자 단위로 쓰임, parkai model.json anchor_units=grid)
-  yolo_anchors: [0.076023, 0.258508, 0.163031, 0.413531, 0.234769, 0.702585, 0.427054, 0.715892, 0.748154, 0.857092]
+  # 현장 차량 박스(정규화 w,h) k-means 5개를 격자 단위(x15)로. 머리는 새로 만들어지므로 사전학습 앵커와 달라도 된다.
+  # Model Zoo 기본 앵커(사람용, 격자 단위로 쓰면 박스의 1/15 크기)는 차량 박스와 평균 IoU 0.07 이라
+  # 첫 학습(150회)에서 납작한 박스가 많이 나왔다. 이 앵커는 평균 IoU 0.82. parkai model.json 과 같아야 한다
+  yolo_anchors: [1.5469, 1.6458, 2.2734, 2.7917, 3.0352, 3.5417, 2.6016, 4.7292, 4.2012, 6.5729]
   confidence_thresh: 0.001
   NMS_thresh: 0.5
   IoU_eval_thresh: 0.5
