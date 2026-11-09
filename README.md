@@ -8,7 +8,7 @@ STM32MP257F(NPU) 보드에서 IP카메라 스냅샷으로 주차면 차량 유�
 - 인터넷 없는 현장을 위해 오프라인 번들 하나로 설치·업데이트
 
 설계는 [docs/design.md](docs/design.md), 서버 전송 규격은 [docs/protocol.md](docs/protocol.md),
-고정 버전은 [VERSIONS.md](VERSIONS.md) 참고.
+칸 선분 긋기 기준은 [docs/lines.md](docs/lines.md), 고정 버전은 [VERSIONS.md](VERSIONS.md) 참고.
 
 ## 구조
 
