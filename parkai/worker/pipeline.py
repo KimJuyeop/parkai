@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import time
+import zlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -285,7 +286,13 @@ class Worker:
             d = self.data_dir / "results" / cam.ip
             d.mkdir(parents=True, exist_ok=True)
             (d / f"{datetime.now():%Y%m%d_%H%M%S}.jpg").write_bytes(rec.tobytes())
+        first = rt.last_saved == 0.0
         rt.last_saved = now
+        if first:
+            # 처음엔 모든 카메라가 같은 사이클에 저장하므로, 다음 주기 저장 시각을 카메라마다 흩어 놓는다
+            # (30대가 한꺼번에 그리고 인코딩하면 그 사이클만 CPU 가 튐: 부하 시험 40% → 62%)
+            interval = self.cfg.runtime.results.save_interval_sec
+            rt.last_saved -= (zlib.crc32(cam.ip.encode()) % 1000) / 1000 * interval
 
     def _enforce_results_limit(self) -> None:
         limit = self.cfg.runtime.results.max_mb * 1024 * 1024

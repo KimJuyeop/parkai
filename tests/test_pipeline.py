@@ -67,6 +67,28 @@ def test_one_cycle(tmp_path: Path):
     assert len(records) == 1 and line_is_green(cv2.imread(str(records[0])))
 
 
+def test_periodic_record_saves_are_spread_over_cameras(tmp_path: Path):
+    """첫 저장 뒤 주기 저장 시각을 카메라마다 흩어 놓아, 여러 대가 한 사이클에 몰려 CPU 가 튀지 않게 한다."""
+    cfg_path = tmp_path / "config.json"
+    cfg = json.loads(Path("examples/config.example.json").read_text(encoding="utf-8"))
+    base = cfg["cameras"][0]
+    cfg["cameras"] = [dict(base, ip=f"192.168.13.{i}") for i in (21, 22, 23)]
+    cfg_path.write_text(json.dumps(cfg), encoding="utf-8")
+    for i in (21, 22, 23):
+        d = tmp_path / "replay" / f"192.168.13.{i}"
+        d.mkdir(parents=True)
+        cv2.imwrite(str(d / "0001.jpg"), make_frame())
+    det = load_detector("fixture", None)
+    w = Worker(cfg_path, det, tmp_path / "run", tmp_path / "data", tmp_path / "replay")
+    w.run_cycle(1)
+    w.stop()
+    saved = [rt.last_saved for rt in w.cams.values()]
+    assert all(s > 0 for s in saved)  # 첫 사이클엔 모두 저장
+    assert len({round(s, 3) for s in saved}) == 3  # 다음 저장 시각은 서로 다르다
+    interval = w.cfg.runtime.results.save_interval_sec
+    assert max(saved) - min(saved) < interval
+
+
 def test_black_screen_not_judged(tmp_path: Path):
     cfg_path = tmp_path / "config.json"
     shutil.copy("examples/config.example.json", cfg_path)
