@@ -8,7 +8,8 @@
 
 - 워커 코드(parkai.worker.pipeline.Worker)를 그대로 쓴다. 사진만 카메라 대신 재생 폴더에서 읽는다
   (<폴더>/<카메라IP>/ch<렌즈>/*.jpg). 그래서 카메라 응답 시간은 들어가지 않는다
-- 사이클 주기(cycle_target_sec)를 무시하고 쉬지 않고 돌린다 → 사이클 시간 = 카메라당 갱신 간격
+- 기본은 쉬지 않고 돌린다 → 사이클 시간 = 최소 갱신 간격. --cycle-sec 를 주면 워커처럼 그 주기마다 돈다
+  (실제 운영의 CPU·온도 확인용. CPU 는 쉬는 시간까지 포함해 잰다)
 - 기록 파일과 최신 이미지는 --work(기본 /tmp/parkai_load) 아래에 쓴다 (설치된 서비스 폴더와 분리)
 - 1분마다 한 줄 요약, 끝나면 전체 요약과 CSV(<work>/load.csv)
 """
@@ -72,6 +73,7 @@ def main() -> None:
     ap.add_argument(
         "--switch-interval", type=float, help="파이썬 스레드 전환 간격(초, 기본 0.005). 추론 대기 시험용"
     )
+    ap.add_argument("--cycle-sec", type=float, default=0, help="사이클 주기(초). 0 이면 쉬지 않고")
     args = ap.parse_args()
     if args.switch_interval:
         sys.setswitchinterval(args.switch_interval)
@@ -87,7 +89,7 @@ def main() -> None:
     n_img = sum(worker.cfg.camera_lenses(c) for c in cams)
     print(
         f"카메라 {len(cams)}대, 사진 {n_img}장/사이클, 모델 {model} ({detector.name}), {args.minutes:g}분, "
-        f"스레드 전환 {sys.getswitchinterval() * 1000:g}ms"
+        f"주기 {args.cycle_sec:g}초(0=쉬지 않음), 스레드 전환 {sys.getswitchinterval() * 1000:g}ms"
     )
 
     rows: list[dict] = []
@@ -98,7 +100,11 @@ def main() -> None:
     try:
         while time.monotonic() < end:
             n += 1
+            started = time.monotonic()
             st = worker.run_cycle(n)
+            wait = args.cycle_sec - (time.monotonic() - started)
+            if wait > 0:
+                time.sleep(wait)
             c1, i1 = cpu_times()
             cpu = 100 * (1 - (i1 - i0) / max(c1 - c0, 1))
             c0, i0 = c1, i1
