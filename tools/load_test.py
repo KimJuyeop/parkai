@@ -97,6 +97,7 @@ def main() -> None:
     c0, i0 = cpu_times()
     last_print = time.monotonic()
     n = 0
+    prev_states: dict[str, dict] = {}
     try:
         while time.monotonic() < end:
             n += 1
@@ -113,6 +114,16 @@ def main() -> None:
                 for k, v in (c.get("timings") or {}).items():
                     stages[k] = stages.get(k, 0.0) + v
             bad = sum(1 for c in st["cameras"].values() if c.get("status") != "ok")
+            # 같은 사진을 반복하므로, 안정화(연속 확인)가 끝난 뒤에는 칸 상태가 바뀌면 안 된다
+            states = {ip: c.get("states") or {} for ip, c in st["cameras"].items()}
+            flips = sum(
+                1
+                for ip, now in states.items()
+                for no, v in now.items()
+                if prev_states.get(ip, {}).get(no, v) != v
+            )
+            prev_states = states
+            occupied = sum(1 for now in states.values() for v in now.values() if v)
             rows.append(
                 {
                     "t": round(time.time(), 1),
@@ -123,6 +134,8 @@ def main() -> None:
                     "rss_mb": round(rss_mb(), 1),
                     "avail_mb": round(mem_avail_mb(), 1),
                     "bad_cams": bad,
+                    "flips": flips,
+                    "occupied": occupied,
                     **{f"{k}_sec": round(v, 3) for k, v in stages.items()},
                 }
             )
@@ -173,6 +186,11 @@ def main() -> None:
         + ", ".join(f"{k[:-4]} {np.mean([r.get(k, 0) for r in rows]):.2f}s" for k in stage_keys)
     )
     print(f"이상 카메라가 있던 사이클: {sum(1 for r in rows if r['bad_cams'])}회")
+    late = rows[3:]  # 처음 몇 사이클은 안정화(연속 확인) 중
+    print(
+        f"칸 상태가 바뀐 횟수(4번째 사이클부터, 같은 사진이라 0 이어야 함): {sum(r['flips'] for r in late)}, "
+        f"차 있음 칸 수: {sorted({r['occupied'] for r in late})}"
+    )
     print(f"CSV: {out}")
 
 
