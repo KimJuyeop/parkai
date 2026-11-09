@@ -126,6 +126,24 @@ $HOME/ST/STEdgeAI/2.2/Utilities/linux/stedgeai generate --model quantized_model.
 
 - 사진을 더 넣어 학습해도 per-tensor 는 나아지지 않았다 (양자화 방식 자체의 문제, 54/186 층이 depthwise)
 - per-channel 로 보드당 렌즈 2개 카메라 약 36대 (10초 ÷ 0.28초). NPU 로 가려면 양자화 인식 학습(QAT)이나 다른 모델이 필요하다
+- TFLite per-channel(st_yoloxn) 도 보드에서 GPU 로 돈다 (실행 117.9ms). ST 의 'MP2 는 per-channel 을 내부에서 per-tensor 로'
+  는 depthwise 가 없는 모델(yolov2t 등) 얘기다
+
+### NPU 용 yolov2t (2026-11-09)
+
+일반 합성곱만 쓰는 ST yolov2t (COCO 사람 사전학습, ST SLA0044) 를 같은 데이터로 학습했다 (`tools/train/yolov2t_finetune.yaml`).
+
+| 단계 | Model Zoo float / int8 mAP | 38대 231칸 틀린 칸 (기준 0.85) |
+| --- | --- | --- |
+| 기본 앵커, 150회 | 56.5 / 53.8 | 7 (차를 놓침 4) |
+| 현장 k-means 앵커(격자 단위), 300회, 전부 int8 | 98.1 / 69.8 | 5 (차를 놓침 1) |
+| 같은 모델, 마지막 출력 층만 float (`quantize_head_float.py`) | 98.1 / - | 3 (차를 놓침 1) |
+
+- 기본 앵커는 사람용(0.07~0.86 격자)이라 차량 박스(2~6 격자)와 평균 IoU 0.07 → 납작한 박스가 많이 나왔다
+- 전부 int8 이면 출력 층 30채널(위치·크기·점수)이 눈금 하나(0.4988)를 같이 써서 박스 크기가 1.6배 단위로 뭉개진다
+- 남은 3칸(.85 #1, .91 #4, .77 #6)은 3픽셀 점 선분이나 옆 칸 박스 가장자리에 걸친 선분이다. 두 모델 모두 같은 차를 찾았다
+- 보드 실측 (렌즈 1장, bench_model): 실행 16.2ms, 합계 24.5ms (GPU st_full_pc 139ms). 카메라 1대(렌즈 2) 45ms 대 265ms
+- 보드 30대 재생 비교 (compare_judge, st_full_pc 기준): 개선 방식 191칸 중 2칸 다름(.77 #6, .91 #4), 일치 99.0%
 
 parkai 후처리로 잰 시험 198화면 (정답 745대, `tools/eval_models.py`, 기준값 0.5):
 
