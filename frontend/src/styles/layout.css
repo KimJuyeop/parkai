@@ -135,9 +135,10 @@
 .savebar .btn:not(.btn--primary) { background: transparent; border-color: currentColor; color: var(--on-bar); }
 
 /* 시스템 설정 */
-.toc { flex: 1 1 200px; max-width: 220px; display: flex; flex-direction: column; gap: var(--sp-half); }
+.toc { flex: 1 1 200px; max-width: 220px; display: flex; flex-direction: column; gap: var(--sp-half); position: sticky; top: var(--sp-4); max-height: calc(100vh - 2 * var(--sp-4)); overflow-y: auto; }
 .toc__link { display: flex; align-items: center; min-height: 40px; padding: 0 var(--sp-2-5); border-radius: var(--radius-sm); color: var(--muted); text-decoration: none; }
 .toc__link:hover { background: var(--surface); color: var(--text); }
+.toc__link[aria-current="true"] { background: var(--surface); color: var(--text); font-weight: 600; }
 .toc__title { margin: 0 0 var(--sp-2-5) var(--sp-2-5); }
 .toc__info { padding: var(--sp-4) var(--sp-2-5); }
 .section { padding: var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-3-5); scroll-margin-top: var(--sp-4); }
@@ -176,6 +177,7 @@
 @media (max-width: 720px) {
   .page { padding: var(--sp-3); }
   .page__side, .page__list, .toc { max-width: none; }
+  .toc { position: static; max-height: none; }
   .monitor { flex-direction: column; }
   .quick { width: auto; border-right: none; border-bottom: 1px solid var(--line); }
   .rail { width: 100%; min-height: 44px; flex-direction: row; justify-content: center; padding: 0 var(--sp-3); border-right: none; border-bottom: 1px solid var(--line); }

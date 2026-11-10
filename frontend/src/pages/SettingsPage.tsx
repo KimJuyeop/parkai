@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BasicFields, FileFields, JudgeFields, LampFields, ProfilesFields, RecordFields, ServerFields } from "../settings/sections";
 import { useCfg } from "../state/AppState";
 
@@ -16,13 +16,43 @@ const BODY: Record<(typeof SECTIONS)[number]["id"], ReactNode> = {
   basic: <BasicFields />, server: <ServerFields />, judge: <JudgeFields />, lamp: <LampFields />, record: <RecordFields />, profile: <ProfilesFields />, file: <FileFields />,
 };
 
+/** 지금 화면에 보이는 절 (목차에서 강조) */
+function useCurrentSection(ids: readonly string[]): string {
+  const [current, setCurrent] = useState<string>(ids[0]);
+  useEffect(() => {
+    const visible = new Map<string, number>();
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) visible.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0);
+        const shown = ids.filter((id) => (visible.get(`set-${id}`) ?? 0) > 0);
+        // 맨 아래까지 내리면 마지막 절들이 함께 보이므로 마지막 것을 고른다
+        const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+        const best = atBottom ? shown[shown.length - 1] : shown[0];
+        if (best) setCurrent(best);
+      },
+      { threshold: [0, 0.25, 0.5, 1] },
+    );
+    for (const id of ids) {
+      const el = document.getElementById(`set-${id}`);
+      if (el) obs.observe(el);
+    }
+    return () => obs.disconnect();
+  }, [ids]);
+  return current;
+}
+
+const SECTION_IDS = SECTIONS.map((s) => s.id);
+
 export function SettingsPage() {
   const { system } = useCfg();
+  const current = useCurrentSection(SECTION_IDS);
   return (
     <div className="page page--narrow">
       <nav className="toc" aria-label="설정 목차">
         <h1 className="title toc__title">시스템 설정</h1>
-        {SECTIONS.map((s) => <a key={s.id} className="toc__link" href={`#set-${s.id}`}>{s.title}</a>)}
+        {SECTIONS.map((s) => (
+          <a key={s.id} className="toc__link" href={`#set-${s.id}`} aria-current={current === s.id ? "true" : undefined}>{s.title}</a>
+        ))}
         {system && (
           <div className="meta stack gap-half toc__info">
             <span className="mono">v{system.version}</span>
