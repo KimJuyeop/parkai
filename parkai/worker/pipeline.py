@@ -16,6 +16,7 @@ import logging
 import os
 import time
 import zlib
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -84,14 +85,18 @@ class Worker:
         run_dir: Path,
         data_dir: Path,
         replay_dir: Path | None = None,
+        load_model: Callable[[str | None], Detector] | None = None,
     ):
         self.config_path = config_path
         self.detector = detector
+        # 설정에서 모델 이름이 바뀌면 이 함수로 다시 올린다 (없으면 처음 올린 모델을 계속 쓴다)
+        self.load_model = load_model
         self.run_dir = run_dir
         self.data_dir = data_dir
         self.replay_dir = replay_dir
         self.device_id = device_id()
         self.cfg: AppConfig = load_config(config_path)
+        self._model_name = self.cfg.detection.model
         self._cfg_mtime = config_path.stat().st_mtime
         self.cams: dict[str, CameraRuntime] = {}
         self.sender = ServerSender(self.cfg.server)
@@ -117,10 +122,24 @@ class Worker:
             log.error("설정 다시 읽기 실패, 기존 설정 유지: %s", e)
             return
         self._cfg_mtime = mtime
+        self._reload_model()
         self.sender.update_cfg(self.cfg.server)
         self.indicator.update_cfg(self.cfg.indicator)
         self._sync_cameras()
         log.info("설정 반영 (카메라 %d대)", len(self.cams))
+
+    def _reload_model(self) -> None:
+        """설정의 모델 이름이 바뀌었으면 새 모델을 올린다. 실패하면 쓰던 모델을 유지한다."""
+        name = self.cfg.detection.model
+        if name == self._model_name or self.load_model is None:
+            return
+        try:
+            self.detector = self.load_model(name)
+        except Exception as e:
+            log.error("모델 '%s' 을 올리지 못해 기존 모델 '%s' 을 계속 씁니다: %s", name, self._model_name, e)
+            return
+        log.info("모델 바꿈: %s → %s (%s)", self._model_name, name, self.detector.name)
+        self._model_name = name
 
     def _make_source(self, cam: Camera, lens: int = 0):
         if self.replay_dir is not None:
@@ -328,6 +347,7 @@ class Worker:
             "device_id": self.device_id,
             "cycle": cycle_no,
             "cycle_sec": round(elapsed, 3),
+            "model": self._model_name,  # 지금 실제로 올라가 있는 모델 (설정과 다르면 올리기 실패)
             "updated_at": _now_iso(),
             "server_error": self.sender.last_error,
             "cameras": cameras,

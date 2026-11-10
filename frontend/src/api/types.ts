@@ -123,6 +123,8 @@ export interface LedTestResult {
 export interface WorkerStatus {
   running: boolean;
   cycle_sec?: number;
+  /** 지금 워커에 올라가 있는 모델 이름 */
+  model?: string | null;
   updated_at?: string;
   server_error?: string | null;
   cameras: Record<string, CameraStatus>;

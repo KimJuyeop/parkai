@@ -31,9 +31,14 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     cfg = load_config(args.config)
-    model_dir = args.models_dir / cfg.detection.model if cfg.detection.model else None
-    detector = load_detector(args.backend, model_dir)
-    Worker(args.config, detector, args.run_dir, args.data_dir, args.replay).run_forever(args.cycles)
+
+    def load_model(name: str | None):
+        return load_detector(args.backend, args.models_dir / name if name else None)
+
+    detector = load_model(cfg.detection.model)
+    Worker(args.config, detector, args.run_dir, args.data_dir, args.replay, load_model).run_forever(
+        args.cycles
+    )
 
 
 if __name__ == "__main__":

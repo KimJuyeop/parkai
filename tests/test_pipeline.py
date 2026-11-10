@@ -1,6 +1,7 @@
 """재생 모드 + fixture 검출기로 파이프라인 전체를 한 사이클 돌려본다."""
 
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -104,6 +105,41 @@ def test_record_images_can_be_turned_off(tmp_path: Path):
     w.stop()
     assert list((tmp_path / "run" / "latest").glob("*.jpg"))
     assert not list((tmp_path / "data").rglob("*.jpg"))
+
+
+def test_model_change_in_config_reloads_detector(tmp_path: Path):
+    """설정에서 모델 이름을 바꾸면 워커가 재시작 없이 새 모델을 올린다. 올리기 실패면 쓰던 모델을 유지한다."""
+    cfg_path = tmp_path / "config.json"
+    cfg = json.loads(Path("examples/config.example.json").read_text(encoding="utf-8"))
+    cfg["detection"]["model"] = "a"
+    cfg_path.write_text(json.dumps(cfg), encoding="utf-8")
+    d = tmp_path / "replay" / "192.168.13.21"
+    d.mkdir(parents=True)
+    cv2.imwrite(str(d / "0001.jpg"), make_frame())
+    loaded = []
+
+    def load_model(name):
+        if name == "missing":
+            raise FileNotFoundError(name)
+        loaded.append(name)
+        return load_detector("fixture", None)
+
+    w = Worker(
+        cfg_path, load_model("a"), tmp_path / "run", tmp_path / "data", tmp_path / "replay", load_model
+    )
+    assert w.run_cycle(1)["model"] == "a"
+
+    def set_model(name, t):
+        cfg["detection"]["model"] = name
+        cfg_path.write_text(json.dumps(cfg), encoding="utf-8")
+        os.utime(cfg_path, (t, t))
+
+    set_model("b", 2_000_000_000)
+    assert w.run_cycle(2)["model"] == "b"
+    assert loaded == ["a", "b"]
+    set_model("missing", 2_000_000_100)
+    assert w.run_cycle(3)["model"] == "b"  # 실패하면 기존 모델 유지
+    w.stop()
 
 
 def test_black_screen_not_judged(tmp_path: Path):
