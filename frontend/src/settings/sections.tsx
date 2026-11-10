@@ -145,6 +145,27 @@ export function JudgeFields({ compact }: P) {
   );
 }
 
+export function RecordFields() {
+  const { cfg, edit } = useCfg();
+  const r = cfg.runtime.results;
+  return (
+    <div className="stack gap-half">
+      <Check label="기록 이미지 저장" sub="끄면 모니터링 화면(최신 이미지)만 남고 저장 장치에 쓰지 않음"
+        checked={r.enabled} onChange={(v) => edit((d) => { d.runtime.results.enabled = v; }, v ? "기록 이미지 저장 켬" : "기록 이미지 저장 끔")} />
+      <div className="form-grid form-grid--2">
+        <Field label="저장 상한 (MB)">
+          <TextInput mono type="number" step="10" value={r.max_mb}
+            onCommit={(v) => edit((d) => { d.runtime.results.max_mb = Math.max(10, num(v)); }, "기록 이미지 저장 상한 변경")} />
+        </Field>
+        <Field label="변화 없을 때 저장 간격 (분)">
+          <TextInput mono type="number" step="1" value={Math.round(r.save_interval_sec / 60)}
+            onCommit={(v) => edit((d) => { d.runtime.results.save_interval_sec = Math.max(1, num(v)) * 60; }, "기록 이미지 저장 간격 변경")} />
+        </Field>
+      </div>
+    </div>
+  );
+}
+
 export function LampFields() {
   const { cfg, edit } = useCfg();
   const ind = cfg.indicator;

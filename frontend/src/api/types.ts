@@ -58,7 +58,7 @@ export interface AppConfig {
     fetch_concurrency: number;
     fetch_timeout_sec: number;
     fetch_retries: number;
-    results: { max_mb: number; save_interval_sec: number };
+    results: { enabled: boolean; max_mb: number; save_interval_sec: number };
   };
   detection: {
     preset: Preset;

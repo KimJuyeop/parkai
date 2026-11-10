@@ -13,7 +13,8 @@
     "fetch_timeout_sec": 3,
     "fetch_retries": 1,
     "results": {
-      "max_mb": 300,
+      "enabled": true,
+      "max_mb": 100,
       "save_interval_sec": 300
     }
   },

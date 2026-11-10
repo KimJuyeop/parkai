@@ -264,6 +264,8 @@ class Worker:
             return
 
         # 기록 이미지: 상태가 바뀌었을 때 + 주기마다, 렌즈를 나란히 붙여 선·박스를 그려 저장 (이때만 인코딩)
+        if not self.cfg.runtime.results.enabled:
+            return
         now = time.time()
         if not (changed or now - rt.last_saved >= self.cfg.runtime.results.save_interval_sec):
             return

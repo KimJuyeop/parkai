@@ -31,8 +31,12 @@ class NetworkCfg(BaseModel):
 
 
 class ResultsCfg(BaseModel):
-    max_mb: int = 300  # 기록 이미지 저장 상한
-    save_interval_sec: int = 300  # 상태 변화가 없어도 이 주기마다 1장 저장
+    """기록 이미지: 선·박스를 그린 사진을 저장 장치에 남긴다 (현장 문의 때 원인 확인용).
+    최신 이미지(웹 화면용, RAM)와는 별개라 꺼도 모니터링은 그대로다."""
+
+    enabled: bool = True
+    max_mb: int = Field(default=100, ge=10)  # 저장 상한. 넘으면 오래된 것부터 지운다
+    save_interval_sec: int = Field(default=300, ge=60)  # 상태 변화가 없어도 이 주기마다 1장 저장
 
 
 class RuntimeCfg(BaseModel):

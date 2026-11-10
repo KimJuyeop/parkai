@@ -89,6 +89,23 @@ def test_periodic_record_saves_are_spread_over_cameras(tmp_path: Path):
     assert max(saved) - min(saved) < interval
 
 
+def test_record_images_can_be_turned_off(tmp_path: Path):
+    """기록 이미지를 끄면 저장 장치에 쓰지 않고, 웹 화면용 최신 이미지는 그대로 남는다."""
+    cfg_path = tmp_path / "config.json"
+    cfg = json.loads(Path("examples/config.example.json").read_text(encoding="utf-8"))
+    cfg["runtime"]["results"]["enabled"] = False
+    cfg_path.write_text(json.dumps(cfg), encoding="utf-8")
+    d = tmp_path / "replay" / "192.168.13.21"
+    d.mkdir(parents=True)
+    cv2.imwrite(str(d / "0001.jpg"), make_frame())
+    det = load_detector("fixture", None)
+    w = Worker(cfg_path, det, tmp_path / "run", tmp_path / "data", tmp_path / "replay")
+    w.run_cycle(1)
+    w.stop()
+    assert list((tmp_path / "run" / "latest").glob("*.jpg"))
+    assert not list((tmp_path / "data").rglob("*.jpg"))
+
+
 def test_black_screen_not_judged(tmp_path: Path):
     cfg_path = tmp_path / "config.json"
     shutil.copy("examples/config.example.json", cfg_path)
