@@ -10,7 +10,8 @@
   (<폴더>/<카메라IP>/ch<렌즈>/*.jpg). 그래서 카메라 응답 시간은 들어가지 않는다
 - 기본은 쉬지 않고 돌린다 → 사이클 시간 = 최소 갱신 간격. --cycle-sec 를 주면 워커처럼 그 주기마다 돈다
   (실제 운영의 CPU·온도 확인용. CPU 는 쉬는 시간까지 포함해 잰다)
-- 기록 파일과 최신 이미지는 --work(기본 /tmp/parkai_load) 아래에 쓴다 (설치된 서비스 폴더와 분리)
+- 기록 이미지는 --work(기본 /tmp/parkai_load) 아래, 최신 이미지·상태는 --run-dir(기본 /tmp, RAM) 에 쓴다.
+  운영 워커도 최신 이미지는 RAM 디스크(/run/parkai)에 둔다
 - 1분마다 한 줄 요약, 끝나면 전체 요약과 CSV(<work>/load.csv)
 """
 
@@ -69,7 +70,13 @@ def main() -> None:
     ap.add_argument("--models-dir", type=Path, default=Path("/var/lib/parkai/models"))
     ap.add_argument("--backend", default="auto")
     ap.add_argument("--minutes", type=float, default=60)
-    ap.add_argument("--work", type=Path, default=Path("/tmp/parkai_load"))
+    ap.add_argument("--work", type=Path, default=Path("/tmp/parkai_load"), help="기록 이미지·CSV")
+    ap.add_argument(
+        "--run-dir",
+        type=Path,
+        default=Path("/tmp/parkai_load_run"),
+        help="최신 이미지·status.json (운영처럼 RAM 에. 저장 장치에 두면 사이클마다 사진 60장을 씀)",
+    )
     ap.add_argument(
         "--switch-interval", type=float, help="파이썬 스레드 전환 간격(초, 기본 0.005). 추론 대기 시험용"
     )
@@ -83,8 +90,8 @@ def main() -> None:
     cfg = load_config(args.config)
     model = cfg.detection.model
     detector = load_detector(args.backend, args.models_dir / model if model else None)
-    (args.work / "run").mkdir(parents=True, exist_ok=True)
-    worker = Worker(args.config, detector, args.work / "run", args.work / "data", args.replay)
+    args.run_dir.mkdir(parents=True, exist_ok=True)
+    worker = Worker(args.config, detector, args.run_dir, args.work / "data", args.replay)
     cams = worker.cfg.cameras_for_board()
     n_img = sum(worker.cfg.camera_lenses(c) for c in cams)
     print(
