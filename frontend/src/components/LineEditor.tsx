@@ -27,7 +27,7 @@ export function LineEditor({ cam, editing, allowStateColor = true }: {
         <button type="button" className={`btn ${editing.adding ? "btn--on" : ""}`} aria-pressed={editing.adding}
           disabled={editing.full && !editing.adding} onClick={editing.toggleAdd}>
           <Icon name="plus" />
-          {editing.adding ? "추가 취소" : editing.full ? `최대 ${MAX_SLOTS}칸` : "선 추가"}
+          {editing.adding ? "추가 끝내기" : editing.full ? `최대 ${MAX_SLOTS}칸` : "선 추가"}
         </button>
         {mode === "state" ? (
           <div className="legend" aria-label="선 색 범례">
@@ -60,7 +60,7 @@ export function LineEditor({ cam, editing, allowStateColor = true }: {
         edit={editing.handlers} label={`${cam.ip} 스냅샷과 칸 선분`}
       />
       <div className="editor-hint">
-        선 추가 → {view.lenses > 1 ? "선을 그을 렌즈 영상에서 " : ""}두 점 클릭 · 흰 점을 끌어 위치 수정 · 선이나 번호를 눌러 선택 후 옆에서 종류 변경 · Delete 로 삭제 · 최대 {MAX_SLOTS}칸 (현재 {cam.slots.length}칸)
+        선 추가 → {view.lenses > 1 ? "선을 그을 렌즈 영상에서 " : ""}두 점 클릭을 반복해 여러 칸을 이어서 추가 (번호는 비어 있는 작은 번호부터) · 흰 점을 끌어 위치 수정 · 선이나 번호를 눌러 선택 후 옆에서 종류 변경 · Delete 로 삭제 · 최대 {MAX_SLOTS}칸 (현재 {cam.slots.length}칸)
       </div>
     </div>
   );

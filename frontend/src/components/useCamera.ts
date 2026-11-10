@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { api } from "../api/client";
-import type { AppConfig, Camera, Point, SlotTypeId } from "../api/types";
-import { handledHere, lensCount, nextSlotNo, slotState, slotType, viewsBBox } from "../lib/domain";
+import type { AppConfig, Camera, Point, Slot, SlotTypeId } from "../api/types";
+import { MAX_SLOTS, handledHere, lensCount, nextSlotNo, slotState, slotType, viewsBBox } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 import type { EditHandlers } from "./CameraMedia";
 
@@ -77,6 +77,7 @@ export function useSlotEditing(ip: string | undefined) {
 
   const handlers: EditHandlers = {
     adding,
+    nextNo: cam ? nextSlotNo(cam) : null,
     onAdd: (lens: number, a: Point, b: Point) => {
       if (!ip || !cam) return;
       const no = nextSlotNo(cam);
@@ -92,7 +93,12 @@ export function useSlotEditing(ip: string | undefined) {
         c.slots.sort((x, y) => x.no - y.no);
       }, `${no}번 칸 추가 (${slotType(newType).name})`);
       setSelected(no);
-      setAdding(false);
+      // 여러 칸을 이어서 긋도록 추가 모드를 유지한다 (Esc 나 '추가 끝내기'로 끝냄). 칸이 다 차면 끝낸다
+      const after = { ...cam, slots: [...cam.slots, { no } as Slot] };
+      if (nextSlotNo(after) == null) {
+        toast(`최대 ${MAX_SLOTS}칸까지 추가했습니다`);
+        setAdding(false);
+      }
     },
     onMove: (no, end, p) => {
       if (!ip) return;

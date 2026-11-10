@@ -6,6 +6,8 @@ export type ColorMode = "state" | "type";
 
 export interface EditHandlers {
   adding: boolean;
+  /** 다음에 그을 칸 번호 (추가 중 안내용) */
+  nextNo?: number | null;
   onAdd: (lens: number, a: Point, b: Point) => void;
   onMove: (no: number, end: 0 | 1, p: Point) => void;
   onMoveEnd: (no: number) => void;
@@ -185,7 +187,12 @@ export function CameraMedia(props: MediaProps) {
       {lensTag && <span className="media__lens">{lensTag}</span>}
       {message && <div className={`media__msg${dimMessage ? " media__msg--dim" : ""}`}>{message}</div>}
       {overlay}
-      {edit?.adding && <div className="media__hint">{pending ? "두 번째 점을 클릭하세요 · Esc 취소" : "첫 번째 점을 클릭하세요 · Esc 취소"}</div>}
+      {edit?.adding && (
+        <div className="media__hint">
+          {edit.nextNo != null ? `${edit.nextNo}번 칸 · ` : ""}
+          {pending ? "두 번째 점을 클릭하세요" : "첫 번째 점을 클릭하세요"} · Esc 로 추가 끝내기
+        </div>
+      )}
     </div>
   );
 }
