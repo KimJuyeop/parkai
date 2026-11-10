@@ -42,7 +42,13 @@ def main() -> None:
         print("  cd frontend && npm install && npm run build")
         print("(화면을 고치는 중이면 frontend 에서 npm run dev → http://localhost:5173)")
 
-    env = dict(os.environ, PARKAI_CONFIG=str(cfg), PARKAI_RUN_DIR=str(run), PARKAI_SAMPLES=str(samples))
+    env = dict(
+        os.environ,
+        PARKAI_CONFIG=str(cfg),
+        PARKAI_RUN_DIR=str(run),
+        PARKAI_SAMPLES=str(samples),
+        PARKAI_MODELS=str(ROOT / "models"),
+    )
     web = subprocess.Popen([sys.executable, "-m", "parkai.web", "--port", str(args.port)], cwd=ROOT, env=env)
     print(f"웹: http://localhost:{args.port}")
     try:

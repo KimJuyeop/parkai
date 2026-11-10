@@ -1,4 +1,4 @@
-import type { AppConfig, LedTestResult, ServerTestResult, SystemInfo, WorkerStatus } from "./types";
+import type { AppConfig, LedTestResult, ModelInfo, ServerTestResult, SystemInfo, WorkerStatus } from "./types";
 
 async function errorText(r: Response): Promise<string> {
   try {
@@ -29,6 +29,7 @@ async function send<T>(method: "PUT" | "POST", path: string, body: unknown): Pro
 export const api = {
   system: () => get<SystemInfo>("/api/v1/system"),
   status: () => get<WorkerStatus>("/api/v1/status"),
+  models: () => get<{ models: ModelInfo[] }>("/api/v1/models"),
   config: () => get<AppConfig>("/api/v1/config"),
   saveConfig: (cfg: AppConfig) => send<{ ok: true }>("PUT", "/api/v1/config", cfg),
   serverTest: () => send<ServerTestResult>("POST", "/api/v1/server/test", {}),

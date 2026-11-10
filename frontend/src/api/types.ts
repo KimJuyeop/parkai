@@ -125,6 +125,8 @@ export interface WorkerStatus {
   cycle_sec?: number;
   /** 지금 워커에 올라가 있는 모델 이름 */
   model?: string | null;
+  /** 설정의 모델을 올리지 못했을 때의 안내 (기존 모델로 계속 판정 중) */
+  model_error?: string | null;
   updated_at?: string;
   server_error?: string | null;
   cameras: Record<string, CameraStatus>;
@@ -136,4 +138,12 @@ export interface ServerTestResult {
   body?: string;
   error?: string;
   payload: unknown;
+}
+
+export interface ModelInfo {
+  /** models/ 아래 폴더 이름 */
+  name: string;
+  /** 들어 있는 모델 파일 (model.nb 등). 비어 있으면 이 보드에서 쓸 수 없다 */
+  files: string[];
+  note: string;
 }

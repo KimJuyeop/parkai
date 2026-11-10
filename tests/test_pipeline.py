@@ -138,7 +138,11 @@ def test_model_change_in_config_reloads_detector(tmp_path: Path):
     assert w.run_cycle(2)["model"] == "b"
     assert loaded == ["a", "b"]
     set_model("missing", 2_000_000_100)
-    assert w.run_cycle(3)["model"] == "b"  # 실패하면 기존 모델 유지
+    st = w.run_cycle(3)
+    assert st["model"] == "b"  # 실패하면 기존 모델 유지
+    assert "missing" in st["model_error"]
+    set_model("b", 2_000_000_200)
+    assert w.run_cycle(4)["model_error"] is None  # 설정을 되돌리면 오류가 사라진다
     w.stop()
 
 

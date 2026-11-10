@@ -30,6 +30,7 @@ export function StatusStrip() {
         <span className="meta">판정</span>
         <span className="stat__value"><span className={`dot ${alive ? "dot--ok" : "dot--bad"}`} />{alive ? "동작 중" : "정지"}</span>
         <span className="meta">{alive ? `${preset}${status?.model ? ` · 모델 ${status.model}` : ""}` : "워커가 실행 중이 아닙니다"}</span>
+        {alive && status?.model_error && <span className="meta meta--error">모델 오류: {status.model_error}</span>}
       </div>
       <div className="stat">
         <span className="meta">CCTV</span>

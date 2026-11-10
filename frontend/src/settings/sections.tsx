@@ -1,6 +1,6 @@
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api } from "../api/client";
-import type { AppConfig, CameraProfile, Preset, ServerTestResult } from "../api/types";
+import type { AppConfig, CameraProfile, ModelInfo, Preset, ServerTestResult } from "../api/types";
 import { FULL_LAMP, INDICATOR_COLORS, PRESETS } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 import { Check, Field, TextInput } from "../components/ui";
@@ -86,6 +86,30 @@ export function ServerFields({ compact }: P) {
   );
 }
 
+/** 모델 고르기: 보드의 models/ 아래에 실제로 있는 모델만 고를 수 있다 (없는 이름을 넣는 실수 방지) */
+function ModelField() {
+  const { cfg, edit, status } = useCfg();
+  const [models, setModels] = useState<ModelInfo[] | null>(null);
+  useEffect(() => {
+    api.models().then((r) => setModels(r.models)).catch(() => setModels([]));
+  }, []);
+  const cur = cfg.detection.model ?? "";
+  const usable = (models ?? []).filter((m) => m.files.length > 0);
+  const known = usable.some((m) => m.name === cur);
+  return (
+    <Field label="모델 (보드의 models/ 아래)">
+      <select className="select mono" value={cur}
+        onChange={(e) => edit((d) => { d.detection.model = e.target.value || null; }, `모델 → ${e.target.value || "없음"}`)}>
+        {cur !== "" && !known && <option value={cur}>{cur} (보드에 없음)</option>}
+        {cur === "" && <option value="">없음</option>}
+        {usable.map((m) => <option key={m.name} value={m.name}>{m.name}</option>)}
+      </select>
+      {cur !== "" && models && !known && <span className="meta meta--error">이 이름의 모델이 보드에 없습니다. 목록에서 골라 주세요.</span>}
+      {status?.model_error && <span className="meta meta--error">{status.model_error}</span>}
+    </Field>
+  );
+}
+
 export function JudgeFields({ compact }: P) {
   const { cfg, edit } = useCfg();
   const det = cfg.detection;
@@ -134,12 +158,7 @@ export function JudgeFields({ compact }: P) {
           <TextInput mono type="number" step="0.05" value={car.conf}
             onCommit={(v) => edit((d) => { d.detection.classes.car = { ...(d.detection.classes.car ?? { enabled: true }), conf: num(v) }; }, "차량 인식 기준 변경")} />
         </Field>
-        {!compact && (
-          <Field label="모델 (models/ 아래 이름)">
-            <TextInput mono value={det.model ?? ""} placeholder="없음 (fixture 검출기)"
-              onCommit={(v) => edit((d) => { d.detection.model = v.trim() || null; }, "모델 변경")} />
-          </Field>
-        )}
+        {!compact && <ModelField />}
       </div>
     </>
   );

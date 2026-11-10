@@ -135,3 +135,23 @@ def test_snapshot_per_lens_from_samples(tmp_path, monkeypatch):
     assert client.get("/api/v1/cameras/192.168.13.21/snapshot?lens=0").content.endswith(b"lens1")
     assert client.get("/api/v1/cameras/192.168.13.21/snapshot?lens=1").content.endswith(b"lens2")
     assert client.get("/api/v1/cameras/192.168.13.21/snapshot?lens=2").status_code == 404
+
+
+def test_models_lists_only_folders_with_model_json(tmp_path, monkeypatch):
+    """모델 목록: model.json 이 있는 폴더만, 들어 있는 모델 파일과 함께 (화면에서 없는 모델을 못 고르게)."""
+    client, _ = make_client(tmp_path, monkeypatch)
+    import parkai.web.app as appmod
+
+    root = tmp_path / "models"
+    (root / "ready").mkdir(parents=True)
+    (root / "ready" / "model.json").write_text(json.dumps({"note": "설명"}), encoding="utf-8")
+    (root / "ready" / "model.nb").write_bytes(b"x")
+    (root / "no_binary").mkdir()
+    (root / "no_binary" / "model.json").write_text("{}", encoding="utf-8")
+    (root / "junk").mkdir()
+    monkeypatch.setattr(appmod, "MODELS", root)
+    got = client.get("/api/v1/models").json()["models"]
+    assert got == [
+        {"name": "no_binary", "files": [], "note": ""},
+        {"name": "ready", "files": ["model.nb"], "note": "설명"},
+    ]

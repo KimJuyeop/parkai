@@ -18,6 +18,7 @@ a:hover { color: var(--accent-hover); }
 h1, h2, h3 { margin: 0; }
 .mono { font-family: var(--font-mono); }
 .meta { font-size: var(--fs-meta); color: var(--muted); }
+.meta--error { color: var(--bad); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .spacer { flex: 1 1 0; }
 

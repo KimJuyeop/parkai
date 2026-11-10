@@ -29,6 +29,7 @@ from ..worker.sources import IMAGE_EXT, HttpSnapshotSource, SourceError, image_m
 
 CONFIG = Path(os.environ.get("PARKAI_CONFIG", "/var/lib/parkai/config.json"))
 RUN_DIR = Path(os.environ.get("PARKAI_RUN_DIR", "/run/parkai"))
+MODELS = Path(os.environ.get("PARKAI_MODELS", "/var/lib/parkai/models"))
 SAMPLES = Path(os.environ["PARKAI_SAMPLES"]) if os.environ.get("PARKAI_SAMPLES") else None
 STATIC = Path(os.environ.get("PARKAI_STATIC", Path(__file__).resolve().parent / "static"))
 
@@ -83,6 +84,27 @@ def system():
         "config_path": str(CONFIG),
         "resources": resources(CONFIG.parent),
     }
+
+
+MODEL_FILES = ("model.nb", "model.onnx", "model.tflite", "model.weights")
+
+
+@app.get("/api/v1/models")
+def models():
+    """모델 폴더 아래에서 쓸 수 있는 모델 (model.json 과 모델 파일이 있는 폴더)."""
+    out = []
+    if MODELS.is_dir():
+        for d in sorted(MODELS.iterdir()):
+            if not (d / "model.json").is_file():
+                continue
+            files = [f for f in MODEL_FILES if (d / f).is_file()]
+            note = ""
+            try:
+                note = str(json.loads((d / "model.json").read_text(encoding="utf-8")).get("note", ""))
+            except (OSError, ValueError):
+                pass
+            out.append({"name": d.name, "files": files, "note": note})
+    return {"models": out}
 
 
 @app.get("/api/v1/status")
