@@ -99,7 +99,19 @@ def main() -> None:
         f"주기 {args.cycle_sec:g}초(0=쉬지 않음), 스레드 전환 {sys.getswitchinterval() * 1000:g}ms"
     )
 
-    rows: list[dict] = []
+    # 기록은 사이클마다 CSV 에 바로 쓴다 (메모리에 쌓으면 시험 도구 자체가 시간당 약 0.8MB 씩 늘어
+    # 워커의 메모리 누수와 구분이 안 된다 — 15시간 시험에서 실제로 섞였음)
+    stage_keys = ["fetch", "decode", "check", "infer", "judge", "output"]
+    fields = ["t", "cycle", "cycle_sec", "cpu_pct", "temp_c", "rss_mb", "avail_mb"]
+    fields += ["bad_cams", "flips", "occupied"]
+    fields += [f"{k}_sec" for k in stage_keys]
+    out = args.work / "load.csv"
+    args.work.mkdir(parents=True, exist_ok=True)
+    f_csv = out.open("w", newline="", encoding="utf-8")
+    writer = csv.DictWriter(f_csv, fieldnames=fields)
+    writer.writeheader()
+
+    recent: list[float] = []
     end = time.monotonic() + args.minutes * 60
     c0, i0 = cpu_times()
     last_print = time.monotonic()
@@ -116,7 +128,7 @@ def main() -> None:
             c1, i1 = cpu_times()
             cpu = 100 * (1 - (i1 - i0) / max(c1 - c0, 1))
             c0, i0 = c1, i1
-            stages: dict[str, float] = {}
+            stages = dict.fromkeys(stage_keys, 0.0)
             for c in st["cameras"].values():
                 for k, v in (c.get("timings") or {}).items():
                     stages[k] = stages.get(k, 0.0) + v
@@ -131,28 +143,27 @@ def main() -> None:
             )
             prev_states = states
             occupied = sum(1 for now in states.values() for v in now.values() if v)
-            rows.append(
-                {
-                    "t": round(time.time(), 1),
-                    "cycle": n,
-                    "cycle_sec": st["cycle_sec"],
-                    "cpu_pct": round(cpu, 1),
-                    "temp_c": max_temp(),
-                    "rss_mb": round(rss_mb(), 1),
-                    "avail_mb": round(mem_avail_mb(), 1),
-                    "bad_cams": bad,
-                    "flips": flips,
-                    "occupied": occupied,
-                    **{f"{k}_sec": round(v, 3) for k, v in stages.items()},
-                }
-            )
+            r = {
+                "t": round(time.time(), 1),
+                "cycle": n,
+                "cycle_sec": st["cycle_sec"],
+                "cpu_pct": round(cpu, 1),
+                "temp_c": max_temp(),
+                "rss_mb": round(rss_mb(), 1),
+                "avail_mb": round(mem_avail_mb(), 1),
+                "bad_cams": bad,
+                "flips": flips,
+                "occupied": occupied,
+                **{f"{k}_sec": round(stages.get(k, 0.0), 3) for k in stage_keys},
+            }
+            writer.writerow(r)
+            f_csv.flush()
+            recent = (recent + [st["cycle_sec"]])[-20:]
             if time.monotonic() - last_print >= 60 or n == 1:
                 last_print = time.monotonic()
-                recent = rows[-20:]
-                r = rows[-1]
                 print(
                     f"[{time.strftime('%H:%M:%S')}] 사이클 {n}: 최근 평균 "
-                    f"{np.mean([x['cycle_sec'] for x in recent]):.2f}s, CPU {r['cpu_pct']}%, "
+                    f"{np.mean(recent):.2f}s, CPU {r['cpu_pct']}%, "
                     f"온도 {r['temp_c']}°C, 메모리 {r['rss_mb']}MB (남은 {r['avail_mb']}MB), "
                     f"이상 카메라 {bad}"
                 )
@@ -160,45 +171,55 @@ def main() -> None:
         print("중단")
     finally:
         worker.stop()
+        f_csv.close()
+    summarize(out, len(cams), n_img, args.cycle_sec, stage_keys)
 
+
+def summarize(path: Path, n_cams: int, n_img: int, cycle_sec: float, stage_keys: list[str]) -> None:
+    """CSV 를 다시 읽어 요약한다."""
+    with path.open(encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
     if not rows:
         return
-    out = args.work / "load.csv"
-    keys = sorted({k for r in rows for k in r}, key=lambda k: list(rows[0]).index(k) if k in rows[0] else 99)
-    with out.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=keys)
-        w.writeheader()
-        w.writerows(rows)
 
-    cyc = np.array([r["cycle_sec"] for r in rows[1:] or rows])
-    temps = [r["temp_c"] for r in rows if r["temp_c"] is not None]
+    def col(k: str) -> np.ndarray:
+        return np.array([float(r[k]) for r in rows if r.get(k) not in (None, "")])
+
+    cyc = col("cycle_sec")[1:] if len(rows) > 1 else col("cycle_sec")
+    temps, rss, t = col("temp_c"), col("rss_mb"), col("t")
     print()
-    print(f"== 요약: 카메라 {len(cams)}대, 사진 {n_img}장, 사이클 {len(rows)}회")
+    print(f"== 요약: 카메라 {n_cams}대, 사진 {n_img}장, 사이클 {len(rows)}회")
     print(
-        f"사이클(= 카메라당 갱신 간격): 평균 {cyc.mean():.2f}s, 중앙 {np.median(cyc):.2f}s, "
-        f"95% {np.percentile(cyc, 95):.2f}s, 최대 {cyc.max():.2f}s"
+        f"처리 시간: 평균 {cyc.mean():.2f}s, 중앙 {np.median(cyc):.2f}s, "
+        f"95% {np.percentile(cyc, 95):.2f}s, 99% {np.percentile(cyc, 99):.2f}s, 최대 {cyc.max():.2f}s"
     )
+    if cycle_sec:
+        over = cyc > cycle_sec
+        print(f"주기 {cycle_sec:g}초를 넘긴 사이클: {int(over.sum())}회 ({over.mean():.1%})")
     print(f"사진 1장당: {cyc.mean() / max(n_img, 1) * 1000:.0f}ms")
-    cpus = [r["cpu_pct"] for r in rows]
-    print(f"CPU: 평균 {np.mean(cpus):.0f}%, 최대 {max(cpus):.0f}%")
-    if temps:
-        print(f"온도: 시작 {temps[0]:.1f}°C, 끝 {temps[-1]:.1f}°C, 최대 {max(temps):.1f}°C")
-    print(
-        f"메모리: 프로그램 최대 {max(r['rss_mb'] for r in rows):.0f}MB, 남은 메모리 최소 "
-        f"{min(r['avail_mb'] for r in rows):.0f}MB"
-    )
-    stage_keys = [k for k in rows[-1] if k.endswith("_sec") and k != "cycle_sec"]
-    print(
-        "단계 합계(사이클당 평균, 카메라 전체): "
-        + ", ".join(f"{k[:-4]} {np.mean([r.get(k, 0) for r in rows]):.2f}s" for k in stage_keys)
-    )
-    print(f"이상 카메라가 있던 사이클: {sum(1 for r in rows if r['bad_cams'])}회")
+    cpus = col("cpu_pct")
+    print(f"CPU: 평균 {cpus.mean():.0f}%, 최대 {cpus.max():.0f}%")
+    if len(temps):
+        print(f"온도: 시작 {temps[0]:.1f}°C, 끝 {temps[-1]:.1f}°C, 최대 {temps.max():.1f}°C")
+    print(f"메모리: 프로그램 최대 {rss.max():.0f}MB, 남은 메모리 최소 {col('avail_mb').min():.0f}MB")
+    hours = (t - t[0]) / 3600
+    if hours[-1] >= 2:  # 첫 1시간(올라가는 구간)을 빼고 시간당 최솟값의 기울기
+        hs = np.arange(1, int(hours[-1]))
+        mins = [rss[(hours >= h) & (hours < h + 1)].min() for h in hs]
+        slope = np.polyfit(hs, mins, 1)[0] if len(hs) > 1 else 0.0
+        print(
+            f"메모리 추세(2시간째부터 시간당 최솟값): {mins[0]:.0f} → {mins[-1]:.0f}MB, 시간당 {slope:+.2f}MB"
+        )
+    parts = ", ".join(f"{k} {col(f'{k}_sec').mean():.2f}s" for k in stage_keys)
+    print(f"단계 합계(사이클당 평균, 카메라 전체): {parts}")
+    print(f"이상 카메라가 있던 사이클: {int((col('bad_cams') > 0).sum())}회")
     late = rows[3:]  # 처음 몇 사이클은 안정화(연속 확인) 중
+    flips = sum(int(r["flips"]) for r in late)
+    occupied = sorted({int(r["occupied"]) for r in late})
     print(
-        f"칸 상태가 바뀐 횟수(4번째 사이클부터, 같은 사진이라 0 이어야 함): {sum(r['flips'] for r in late)}, "
-        f"차 있음 칸 수: {sorted({r['occupied'] for r in late})}"
+        f"칸 상태가 바뀐 횟수(4번째 사이클부터, 같은 사진이라 0 이어야 함): {flips}, 차 있는 칸: {occupied}"
     )
-    print(f"CSV: {out}")
+    print(f"CSV: {path}")
 
 
 if __name__ == "__main__":
