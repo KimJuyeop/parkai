@@ -29,7 +29,7 @@ from .. import __version__
 from ..backends import Detector
 from ..core.config import AppConfig, Camera, load_config
 from ..core.geometry import Box
-from ..core.image_check import FrozenDetector, ImageStatus, check_view
+from ..core.image_check import FrozenDetector, ImageStatus, inspect_view
 from ..core.layout import split_views
 from ..core.stabilizer import CameraStabilizer
 from ..core.system import board_ip, device_id
@@ -203,11 +203,12 @@ class Worker:
             timings["check"] = timings.get("check", 0) + time.perf_counter() - t
             return LensFrame(lens, "frozen", img, jpeg, key)
         views = split_views(img, self.cfg.camera_profiles[cam.profile].views)
-        statuses = [check_view(cv2.cvtColor(v.image, cv2.COLOR_BGR2GRAY), chk) for v in views]
-        view_ok = [st == ImageStatus.OK for st in statuses]
-        status = "ok" if all(view_ok) else "partial" if any(view_ok) else statuses[0].value
+        checks = [inspect_view(cv2.cvtColor(v.image, cv2.COLOR_BGR2GRAY), chk) for v in views]
+        view_ok = [st == ImageStatus.OK for st, _ in checks]
+        view_noisy = [nz for _, nz in checks]
+        status = "ok" if all(view_ok) else "partial" if any(view_ok) else checks[0][0].value
         timings["check"] = timings.get("check", 0) + time.perf_counter() - t
-        return LensFrame(lens, status, img, jpeg, key, views, view_ok)
+        return LensFrame(lens, status, img, jpeg, key, views, view_ok, view_noisy)
 
     def _prepare(self, rt: CameraRuntime) -> Prepared:
         timings: dict[str, float] = {}
@@ -264,6 +265,9 @@ class Worker:
         info["states"] = {str(k): v for k, v in rt.states.items()}
         info["sent"] = complete
         info["boxes"] = sum(len(b) for b in boxes.values())
+        smoothed = [f.lens for f in p.frames if any(f.view_noisy)]
+        if smoothed:  # 잡음이 많아(밤) 평균해 줄인 렌즈 (0부터). 현장에서 언제 켜지는지 확인용
+            info["smoothed"] = smoothed
         # 웹 화면이 원본 위에 직접 그리도록 검출 박스 [렌즈, x1, y1, x2, y2, 점수] (렌즈 사진 대비 비율)
         info["dets"] = dets_for_web(p.frames, boxes)
         return info

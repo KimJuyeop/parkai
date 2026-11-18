@@ -258,3 +258,19 @@ def test_image_check_blur_matches_float_laplacian():
     assert check_view(sharp, cfg) == ImageStatus.OK
     assert check_view(flat, cfg) == ImageStatus.BLUR
     assert check_view(np.zeros((72, 128), np.uint8), cfg) == ImageStatus.BLACK
+
+
+def test_image_check_marks_noisy_night_view():
+    """밤 저조도 화면처럼 화소마다 잡음이 크면 '잡음 많음'으로 표시한다. 상태는 그대로 정상 (판정은 한다)."""
+    from parkai.core.config import ImageCheckCfg
+    from parkai.core.image_check import ImageStatus, inspect_view
+
+    yy, xx = np.mgrid[0:144, 0:256]
+    day = ((xx // 32 + yy // 32) % 2 * 120 + 60).astype(np.uint8)  # 큰 무늬: 경계에서만 밝기가 바뀜
+    rng = np.random.default_rng(2)
+    night = np.clip(day + rng.normal(0, 40, day.shape), 0, 255).astype(np.uint8)
+    cfg = ImageCheckCfg()
+    assert inspect_view(day, cfg) == (ImageStatus.OK, False)
+    assert inspect_view(night, cfg) == (ImageStatus.OK, True)
+    assert inspect_view(night, ImageCheckCfg(noise_var=0)) == (ImageStatus.OK, False)  # 0 이면 끔
+    assert inspect_view(np.zeros_like(day), cfg) == (ImageStatus.BLACK, False)

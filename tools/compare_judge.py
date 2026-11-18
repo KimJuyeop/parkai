@@ -36,6 +36,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from parkai.backends import load_detector  # noqa: E402
 from parkai.core.config import PRESETS, Camera, load_config  # noqa: E402
+from parkai.core.image_check import inspect_view  # noqa: E402
 from parkai.core.layout import split_views  # noqa: E402
 from parkai.worker.analyze import LensFrame, detect_lens, judge_camera, slot_in_px  # noqa: E402
 from parkai.worker.draw import annotate  # noqa: E402
@@ -56,7 +57,9 @@ def fetch_frames(srcs: list, cam: Camera, cfg, out: Path | None) -> list[LensFra
         if img is None:
             return f"렌즈{lens + 1} 이미지 디코딩 실패"
         views = split_views(img, cfg.camera_profiles[cam.profile].views)
-        frames.append(LensFrame(lens, "ok", img, jpeg, key, views, [True] * len(views)))
+        chk = cfg.detection.image_check  # 잡음 많은 화면(밤) 표시만 워커와 같게 (전처리가 달라짐)
+        noisy = [inspect_view(cv2.cvtColor(v.image, cv2.COLOR_BGR2GRAY), chk)[1] for v in views]
+        frames.append(LensFrame(lens, "ok", img, jpeg, key, views, [True] * len(views), noisy))
     return frames
 
 

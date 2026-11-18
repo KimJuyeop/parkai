@@ -28,6 +28,7 @@ class LensFrame:
     source_key: str | None = None
     views: list[View] = field(default_factory=list)
     view_ok: list[bool] = field(default_factory=list)
+    view_noisy: list[bool] = field(default_factory=list)  # 잡음이 많은 화면(밤) → 검출 전처리에서 평균해 줄임
     error: str | None = None
 
     @property
@@ -43,9 +44,10 @@ def detect_lens(detector: Detector, frame: LensFrame, conf: dict[str, float], nm
     if getattr(detector, "full_frame", False):  # fixture: 렌즈 사진 좌표 박스를 그대로
         return detector.detect(frame.image, conf, nms_iou, frame.source_key)
     boxes: list[Box] = []
-    for v, ok in zip(frame.views, frame.view_ok, strict=True):
+    noisy = frame.view_noisy or [False] * len(frame.views)
+    for v, ok, nz in zip(frame.views, frame.view_ok, noisy, strict=True):
         if ok:
-            boxes += [v.box_to_lens(b) for b in detector.detect(v.image, conf, nms_iou)]
+            boxes += [v.box_to_lens(b) for b in detector.detect(v.image, conf, nms_iou, smooth=nz)]
     return boxes
 
 

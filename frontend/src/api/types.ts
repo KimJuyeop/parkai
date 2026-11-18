@@ -67,7 +67,7 @@ export interface AppConfig {
     nms_iou: number;
     judge: { mode: "intersect" | "cover_ratio"; cover_ratio: number; cover_ratio_shared: number };
     stabilize: { count: number };
-    image_check: { black_mean: number; blur_var: number; frozen_cycles: number };
+    image_check: { black_mean: number; blur_var: number; frozen_cycles: number; noise_var: number };
   };
   slot_types: SlotType[];
   camera_profiles: Record<string, CameraProfile>;

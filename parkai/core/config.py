@@ -68,6 +68,9 @@ class ImageCheckCfg(BaseModel):
     black_mean: float = 8.0  # 평균 밝기가 이보다 낮으면 검은 화면
     blur_var: float = 10.0  # 라플라시안 분산이 이보다 낮으면 흐림
     frozen_cycles: int = 6  # 이 사이클 수만큼 이미지가 완전히 같으면 정지
+    # 라플라시안 분산이 이보다 크면 잡음이 많은 화면(밤)으로 보고, 모델에 넣을 때 화소를 평균해 줄인다.
+    # 0 이면 끔
+    noise_var: float = 5000.0
 
 
 PRESETS: dict[str, tuple[JudgeCfg, StabilizeCfg]] = {

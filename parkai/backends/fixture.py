@@ -20,7 +20,7 @@ class FixtureDetector(Detector):
     name = "fixture"
     full_frame = True  # 파이프라인이 화면 분할 없이 원본 좌표로 사용
 
-    def detect(self, image_bgr, conf, nms_iou, source_key=None):
+    def detect(self, image_bgr, conf, nms_iou, source_key=None, smooth=False):
         if not source_key:
             return []
         p = Path(source_key).with_suffix(".json")

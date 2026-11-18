@@ -26,7 +26,7 @@ class DarknetDetector(Detector):
         self.model = cv2.dnn.DetectionModel(cv2.dnn.readNetFromDarknet(str(cfg), str(weights)))
         self.model.setInputParams(size=tuple(pkg.input_size), scale=1 / 255, swapRB=True)
 
-    def detect(self, image_bgr, conf, nms_iou, source_key=None):
+    def detect(self, image_bgr, conf, nms_iou, source_key=None, smooth=False):  # PC 비교용: smooth 무시
         low = min(conf.values(), default=1.0)
         ids, scores, boxes = self.model.detect(image_bgr, confThreshold=low, nmsThreshold=nms_iou)
         out = []

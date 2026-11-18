@@ -47,6 +47,7 @@ def test_one_cycle(tmp_path: Path):
     assert datetime.fromisoformat(st["updated_at"]).tzinfo is not None
     assert datetime.fromisoformat(cam["updated_at"]).tzinfo is not None
     assert cam["states"] == {"1": True, "2": False, "3": False, "4": False, "5": False}
+    assert cam["smoothed"] == [0]  # 시험 사진 위쪽은 무작위 잡음이라 밤 화면처럼 평균해 줄인다
     assert (tmp_path / "run" / "status.json").exists()
     # 웹 화면이 직접 그릴 수 있도록 검출 박스 [렌즈, x1, y1, x2, y2, 점수] (렌즈 사진 대비 비율)
     assert cam["dets"] == [
@@ -253,3 +254,26 @@ def test_one_lens_missing_keeps_other_lens(tmp_path: Path):
     assert cam["states"] == {"1": False}
     assert cam["sent"] is False
     assert "렌즈2" in cam["error"]
+
+
+def test_detect_lens_smooths_only_noisy_views():
+    """잡음 많은 분석 영역(밤)만 평균해 줄이도록 검출기에 알린다. 표시가 없으면 평소대로."""
+    from parkai.backends.base import Detector
+    from parkai.core.layout import split_views
+    from parkai.worker.analyze import LensFrame, detect_lens
+
+    class Rec(Detector):
+        def __init__(self):
+            self.calls = []
+
+        def detect(self, image_bgr, conf, nms_iou, source_key=None, smooth=False):
+            self.calls.append(smooth)
+            return []
+
+    img = np.zeros((40, 80, 3), np.uint8)
+    views = split_views(img, [(0, 0, 0.5, 1), (0.5, 0, 1, 1)])
+    det = Rec()
+    noisy = LensFrame(0, "ok", img, views=views, view_ok=[True, True], view_noisy=[False, True])
+    detect_lens(det, noisy, {"car": 0.5}, 0.45)
+    detect_lens(det, LensFrame(0, "ok", img, views=views, view_ok=[True, True]), {"car": 0.5}, 0.45)
+    assert det.calls == [False, True, False, False]

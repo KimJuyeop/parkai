@@ -49,8 +49,14 @@ class Detector(ABC):
 
     @abstractmethod
     def detect(
-        self, image_bgr: np.ndarray, conf: dict[str, float], nms_iou: float, source_key: str | None = None
-    ) -> list[Box]: ...
+        self,
+        image_bgr: np.ndarray,
+        conf: dict[str, float],
+        nms_iou: float,
+        source_key: str | None = None,
+        smooth: bool = False,
+    ) -> list[Box]:
+        """smooth: 잡음이 많은 화면(밤, core/image_check.py) — 모델 입력으로 줄일 때 화소를 평균한다."""
 
 
 class ModelDetector(Detector):
@@ -65,16 +71,26 @@ class ModelDetector(Detector):
     @abstractmethod
     def _run(self, tensor: np.ndarray) -> list[np.ndarray]: ...
 
-    def preprocess(self, image_bgr: np.ndarray) -> tuple[np.ndarray, Letterbox]:
+    def preprocess(self, image_bgr: np.ndarray, smooth: bool = False) -> tuple[np.ndarray, Letterbox]:
         """model.json 옵션
         resize: letterbox(기본) | fit(비율 무시)    interpolation: linear(기본) | nearest
+
+        smooth(잡음이 많은 밤 화면): 학습과 같은 nearest 는 화소 하나만 골라 잡음이 그대로 남아
+        차를 못 잡는다 (2026-11-18 밤 2장 4대: 두 모델 모두 0대). 화소를 평균해 줄이고(area)
+        3x3 중간값을 거치면 4대 모두 잡았다. 낮 화면에 쓰면 학습과 달라져 조금 나빠지므로
+        (38대 틀린 칸 3→4) 잡음이 많은 화면에만 쓴다.
         """
         in_w, in_h = self.pkg.input_size
         h, w = image_bgr.shape[:2]
         fit = self.pkg.extra.get("resize", "letterbox") == "fit"
         lb = (Letterbox.stretch if fit else Letterbox.compute)(w, h, in_w, in_h)
-        interp = cv2.INTER_NEAREST if self.pkg.extra.get("interpolation") == "nearest" else cv2.INTER_LINEAR
-        resized = cv2.resize(image_bgr, (lb.new_w, lb.new_h), interpolation=interp)
+        if smooth:
+            resized = cv2.resize(image_bgr, (lb.new_w, lb.new_h), interpolation=cv2.INTER_AREA)
+            resized = cv2.medianBlur(resized, 3)
+        else:
+            nearest = self.pkg.extra.get("interpolation") == "nearest"
+            interp = cv2.INTER_NEAREST if nearest else cv2.INTER_LINEAR
+            resized = cv2.resize(image_bgr, (lb.new_w, lb.new_h), interpolation=interp)
         if fit:
             canvas = resized
         else:
@@ -85,8 +101,8 @@ class ModelDetector(Detector):
             canvas = cv2.cvtColor(canvas, cv2.COLOR_BGR2RGB)
         return canvas, lb
 
-    def detect(self, image_bgr, conf, nms_iou, source_key=None):
-        tensor, lb = self.preprocess(image_bgr)
+    def detect(self, image_bgr, conf, nms_iou, source_key=None, smooth=False):
+        tensor, lb = self.preprocess(image_bgr, smooth)
         outputs = self._run(tensor)
         boxes = self.post(outputs, self.pkg, conf, nms_iou)
         return [lb.to_source(b) for b in boxes]

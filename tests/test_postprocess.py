@@ -97,6 +97,31 @@ def test_stai_fast_input_matches_general_quantization():
     assert np.array_equal(to_input(x, np.dtype(np.uint8), (scale, 0), 255.0), general(x, np.uint8, 0))
 
 
+def test_preprocess_smooth_averages_noisy_pixels():
+    """밤 잡음 화면: nearest 는 화소 하나만 골라 잡음이 그대로 남고, smooth 는 평균해 고르게 만든다."""
+    from parkai.backends.base import ModelDetector
+
+    class Dummy(ModelDetector):
+        def _run(self, tensor):
+            return []
+
+    pkg = ModelPackage(
+        path=None,
+        arch="yolox",
+        input_size=(4, 4),
+        classes=["car"],
+        extra={"resize": "fit", "interpolation": "nearest", "color": "bgr"},
+    )
+    det = Dummy(pkg)
+    board = (np.indices((16, 16)).sum(axis=0) % 2 * 255).astype(np.uint8)  # 화소마다 0/255 (잡음 흉내)
+    img = np.repeat(board[..., None], 3, axis=2)
+    near, _ = det.preprocess(img)
+    smooth, _ = det.preprocess(img, smooth=True)
+    assert near.shape == smooth.shape == (4, 4, 3)
+    assert set(np.unique(near)) <= {0, 255}
+    assert np.all(np.abs(smooth.astype(int) - 128) <= 1)
+
+
 def test_nms_keeps_first_of_tied_boxes_regardless_of_other_candidates():
     """점수가 같은(1.0 포화) 겹친 박스는 원래 순서상 앞의 것이 남는다. 다른 후보가 늘어도(기준값을 낮춰도) 같다."""
     from parkai.postprocess import nms
