@@ -30,8 +30,12 @@ def get_postprocessor(arch: str) -> PostFn:
 
 
 def nms(boxes: np.ndarray, scores: np.ndarray, iou: float) -> list[int]:
-    """boxes: (N, 4) xyxy"""
-    order = scores.argsort()[::-1]
+    """boxes: (N, 4) xyxy
+
+    점수가 같은 박스(1.0 으로 포화된 경우가 많다)는 원래 순서대로 남긴다 (안정 정렬).
+    그냥 argsort 는 동점 순서가 후보 수에 따라 바뀌어, 기준값만 바꿔도 같은 차에 다른 박스가 남았다.
+    """
+    order = np.argsort(-scores, kind="stable")
     keep: list[int] = []
     areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
     while order.size:

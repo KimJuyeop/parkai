@@ -95,3 +95,15 @@ def test_stai_fast_input_matches_general_quantization():
     assert fast.dtype == np.int8 and fast.flags.c_contiguous
     assert np.array_equal(fast, general(nchw, np.int8, -128))
     assert np.array_equal(to_input(x, np.dtype(np.uint8), (scale, 0), 255.0), general(x, np.uint8, 0))
+
+
+def test_nms_keeps_first_of_tied_boxes_regardless_of_other_candidates():
+    """점수가 같은(1.0 포화) 겹친 박스는 원래 순서상 앞의 것이 남는다. 다른 후보가 늘어도(기준값을 낮춰도) 같다."""
+    from parkai.postprocess import nms
+
+    tied = np.array([[0, 0, 10, 10], [1, 1, 11, 11]], np.float32)
+    for extra in range(0, 40):  # 낮은 점수 후보 수만 바꿔 본다
+        far = np.array([[100 + 20 * i, 0, 110 + 20 * i, 10] for i in range(extra)], np.float32).reshape(-1, 4)
+        boxes = np.concatenate([tied, far])
+        scores = np.concatenate([np.ones(2, np.float32), np.full(extra, 0.4, np.float32)])
+        assert nms(boxes, scores, 0.45)[0] == 0
