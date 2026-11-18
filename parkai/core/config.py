@@ -49,7 +49,8 @@ class RuntimeCfg(BaseModel):
 
 class ClassCfg(BaseModel):
     enabled: bool = True
-    conf: float = 0.45
+    # 차량 인식 기준. yolov2t_hf 는 0.7~0.85 에서 38대 결과가 같고 0.7 에서 그늘 속 검은 차(0.72)를 잡는다
+    conf: float = 0.7
 
 
 class JudgeCfg(BaseModel):
@@ -80,8 +81,9 @@ PRESETS: dict[str, tuple[JudgeCfg, StabilizeCfg]] = {
 
 
 class DetectionCfg(BaseModel):
-    preset: Literal["legacy", "standard", "custom"] = "legacy"
-    model: str | None = None  # models/ 아래 모델 패키지 이름
+    # 판정 방식은 standard 로 고정 (화면에서 고르지 않음). legacy/custom 은 읽을 때 standard 로 바꾼다
+    preset: Literal["legacy", "standard", "custom"] = "standard"
+    model: str | None = "yolov2t_hf"  # models/ 아래 모델 패키지 이름
     classes: dict[str, ClassCfg] = {"car": ClassCfg()}
     nms_iou: float = 0.45
     judge: JudgeCfg = JudgeCfg()
@@ -250,6 +252,7 @@ class AppConfig(BaseModel):
     def _migrate(cls, data):
         """예전 설정 파일 자동 변환.
         - 카메라마다 비밀번호가 있었으면 개별 계정으로 유지
+        - 판정 방식 기존(legacy)·직접 설정(custom) → 개선 방식(standard)
         - 버전 1: 기준 해상도(ref_size) 픽셀 좌표 → 렌즈 사진 대비 비율, 렌즈 1개
         """
         if not isinstance(data, dict):
@@ -257,6 +260,9 @@ class AppConfig(BaseModel):
         for cam in data.get("cameras") or []:
             if isinstance(cam, dict) and "own_account" not in cam and cam.get("password"):
                 cam["own_account"] = True
+        det = data.get("detection")
+        if isinstance(det, dict) and det.get("preset") in ("legacy", "custom"):
+            det["preset"] = "standard"  # 판정 방식 고정 (2026-11-18, docs/design.md 4절)
         if int(data.get("schema_version") or 1) < 2:
             _migrate_v1(data)
         data["schema_version"] = SCHEMA_VERSION

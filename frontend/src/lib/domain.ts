@@ -26,11 +26,8 @@ export const INDICATOR_COLORS: { id: IndicatorColor; name: string; hex: string }
 /** 만차일 때 만공등 색 (항상 빨강, 바꿀 수 없음) */
 export const FULL_LAMP = { name: "빨간색", hex: "#dc2626" } as const;
 
-export const PRESETS = [
-  { id: "legacy", name: "기존 방식", desc: "선에 차량 박스가 닿으면 차량 있음 · 매 주기 반영", tag: "Jetson과 동일" },
-  { id: "standard", name: "개선 방식", desc: "선이 덮인 비율(0.6)로 판단 · 2회 연속 같을 때 반영", tag: "검증 후 전환 후보" },
-  { id: "custom", name: "직접 설정", desc: "판정 기준과 연속 일치 횟수를 직접 정합니다", tag: "현장 보정용" },
-] as const;
+/** 판정 방식 (고정, docs/design.md 4절). 화면에서 바꿀 수 있는 판정 값은 차량 인식 기준 하나 */
+export const JUDGE_RULE = "선분이 차량 박스에 60% 이상 덮이면 차량 있음 · 2회 연속 같을 때 반영";
 
 /** 카메라의 렌즈 수 (프로필 값) */
 export function lensCount(cfg: AppConfig, cam: Camera): number {

@@ -123,7 +123,8 @@ def test_preprocess_smooth_averages_noisy_pixels():
 
 
 def test_nms_keeps_first_of_tied_boxes_regardless_of_other_candidates():
-    """점수가 같은(1.0 포화) 겹친 박스는 원래 순서상 앞의 것이 남는다. 다른 후보가 늘어도(기준값을 낮춰도) 같다."""
+    """점수가 같은(1.0 포화) 겹친 박스는 원래 순서상 앞의 것이 남는다.
+    다른 후보가 늘어도(기준값을 낮춰도) 같다."""
     from parkai.postprocess import nms
 
     tied = np.array([[0, 0, 10, 10], [1, 1, 11, 11]], np.float32)

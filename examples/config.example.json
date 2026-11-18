@@ -19,12 +19,12 @@
     }
   },
   "detection": {
-    "preset": "legacy",
-    "model": null,
+    "preset": "standard",
+    "model": "yolov2t_hf",
     "classes": {
       "car": {
         "enabled": true,
-        "conf": 0.45
+        "conf": 0.7
       }
     },
     "nms_iou": 0.45

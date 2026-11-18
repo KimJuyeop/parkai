@@ -274,3 +274,21 @@ def test_image_check_marks_noisy_night_view():
     assert inspect_view(night, cfg) == (ImageStatus.OK, True)
     assert inspect_view(night, ImageCheckCfg(noise_var=0)) == (ImageStatus.OK, False)  # 0 이면 끔
     assert inspect_view(np.zeros_like(day), cfg) == (ImageStatus.BLACK, False)
+
+
+def test_judge_preset_is_fixed_to_standard():
+    """판정 방식은 개선 방식(standard)으로 고정: 예전 파일의 기존·직접 설정도 읽을 때 바꾼다.
+    기본 모델·기준값도 확인."""
+    import json
+    from pathlib import Path
+
+    from parkai.core.config import PRESETS, AppConfig
+
+    data = json.loads(Path("examples/config.example.json").read_text(encoding="utf-8"))
+    for old in ("legacy", "custom", "standard"):
+        data["detection"]["preset"] = old
+        det = AppConfig.model_validate(json.loads(json.dumps(data))).detection
+        assert det.preset == "standard"
+        assert det.effective() == PRESETS["standard"]
+    det = AppConfig().detection
+    assert (det.preset, det.model, det.classes["car"].conf) == ("standard", "yolov2t_hf", 0.7)

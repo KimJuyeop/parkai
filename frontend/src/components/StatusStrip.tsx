@@ -1,4 +1,4 @@
-import { PRESETS, ago, handledHere } from "../lib/domain";
+import { ago, handledHere } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 
 /** 사용률 막대 색: 85% 이상 빨강, 70% 이상 노랑 */
@@ -11,7 +11,7 @@ export function StatusStrip() {
   const { cfg, status, alive, system, cycleHistory } = useCfg();
   const mine = cfg.cameras.filter((c) => handledHere(cfg, c));
   const offline = alive ? mine.filter((c) => status.cameras[c.ip]?.status === "no_response").length : 0;
-  const preset = PRESETS.find((p) => p.id === cfg.detection.preset)?.name ?? "";
+  const conf = cfg.detection.classes.car?.conf;
   const res = system?.resources;
   const cpu = res?.cpu_percent;
   const mem = res?.memory;
@@ -29,7 +29,7 @@ export function StatusStrip() {
       <div className="stat">
         <span className="meta">판정</span>
         <span className="stat__value"><span className={`dot ${alive ? "dot--ok" : "dot--bad"}`} />{alive ? "동작 중" : "정지"}</span>
-        <span className="meta">{alive ? `${preset}${status?.model ? ` · 모델 ${status.model}` : ""}` : "워커가 실행 중이 아닙니다"}</span>
+        <span className="meta">{alive ? `차량 인식 기준 ${conf ?? "-"}` : "워커가 실행 중이 아닙니다"}</span>
         {alive && status?.model_error && <span className="meta meta--error">모델 오류: {status.model_error}</span>}
       </div>
       <div className="stat">

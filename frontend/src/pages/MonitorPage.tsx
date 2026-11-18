@@ -5,7 +5,6 @@ import { Icon } from "../components/Icon";
 import { StatusStrip } from "../components/StatusStrip";
 import { handledHere, slotState } from "../lib/domain";
 import { BasicFields, JudgeFields, LampFields, ServerFields } from "../settings/sections";
-import { PRESETS } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 
 type Filter = "all" | "free" | "full";
@@ -91,7 +90,7 @@ function QuickSettings({ onClose, onGoSettings }: { onClose: () => void; onGoSet
   const sections: { id: Sec; title: string; summary: string; body: JSX.Element }[] = [
     { id: "basic", title: "기본 정보", summary: `판정 주기 ${cfg.runtime.cycle_target_sec}초`, body: <BasicFields compact /> },
     { id: "server", title: "서버 전송", summary: cfg.server.enabled ? "사용 중" : "사용 안 함", body: <ServerFields compact /> },
-    { id: "judge", title: "판정 방식", summary: PRESETS.find((p) => p.id === cfg.detection.preset)?.name ?? "", body: <JudgeFields compact /> },
+    { id: "judge", title: "판정", summary: `인식 기준 ${cfg.detection.classes.car?.conf ?? "-"}`, body: <JudgeFields compact /> },
     { id: "lamp", title: "만공등", summary: cfg.indicator.enabled ? "사용 중" : "사용 안 함", body: <LampFields /> },
   ];
   return (

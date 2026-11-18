@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api } from "../api/client";
-import type { AppConfig, CameraProfile, ModelInfo, Preset, ServerTestResult } from "../api/types";
-import { FULL_LAMP, INDICATOR_COLORS, PRESETS } from "../lib/domain";
+import type { AppConfig, CameraProfile, ModelInfo, ServerTestResult } from "../api/types";
+import { FULL_LAMP, INDICATOR_COLORS, JUDGE_RULE } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 import { Check, Field, TextInput } from "../components/ui";
 import { Icon } from "../components/Icon";
@@ -97,7 +97,7 @@ function ModelField() {
   const usable = (models ?? []).filter((m) => m.files.length > 0);
   const known = usable.some((m) => m.name === cur);
   return (
-    <Field label="모델 (보드의 models/ 아래)">
+    <Field label="검출 모델 (보드의 models/ 아래)">
       <select className="select mono" value={cur}
         onChange={(e) => edit((d) => { d.detection.model = e.target.value || null; }, `모델 → ${e.target.value || "없음"}`)}>
         {cur !== "" && !known && <option value={cur}>{cur} (보드에 없음)</option>}
@@ -112,55 +112,26 @@ function ModelField() {
 
 export function JudgeFields({ compact }: P) {
   const { cfg, edit } = useCfg();
-  const det = cfg.detection;
-  const car = det.classes.car ?? { enabled: true, conf: 0.45 };
+  const car = cfg.detection.classes.car ?? { enabled: true, conf: 0.7 };
   return (
-    <>
-      <div role="radiogroup" aria-label="판정 방식" className={`preset-grid${compact ? " preset-grid--1" : ""}`}>
-        {PRESETS.map((p) => (
-          <button key={p.id} type="button" role="radio" aria-checked={det.preset === p.id} className="preset"
-            onClick={() => det.preset !== p.id && edit((d) => { d.detection.preset = p.id as Preset; }, `판정 방식 → ${p.name}`)}>
-            <span className="preset__radio" />
-            <span className="stack gap-half">
-              <span className="preset__name">{p.name}</span>
-              <span className="meta">{p.desc}</span>
-              {!compact && <span className="meta">{p.tag}</span>}
-            </span>
-          </button>
-        ))}
-      </div>
-      {det.preset === "custom" && !compact && (
-        <div className="form-grid soft-box">
-          <Field label="판정">
-            <select className="select" value={det.judge.mode}
-              onChange={(e) => edit((d) => { d.detection.judge.mode = e.target.value as AppConfig["detection"]["judge"]["mode"]; }, "판정 기준 변경")}>
-              <option value="intersect">선에 닿으면 차량 있음</option>
-              <option value="cover_ratio">선이 덮인 비율로 판단</option>
-            </select>
-          </Field>
-          <Field label="덮임 비율 기준">
-            <TextInput mono type="number" step="0.05" value={det.judge.cover_ratio}
-              onCommit={(v) => edit((d) => { d.detection.judge.cover_ratio = num(v); }, "덮임 비율 변경")} />
-          </Field>
-          <Field label="겹친 칸 기준">
-            <TextInput mono type="number" step="0.05" value={det.judge.cover_ratio_shared}
-              onCommit={(v) => edit((d) => { d.detection.judge.cover_ratio_shared = num(v); }, "겹친 칸 기준 변경")} />
-          </Field>
-          <Field label="연속 일치 횟수">
-            <TextInput mono type="number" step="1" value={det.stabilize.count}
-              onCommit={(v) => edit((d) => { d.detection.stabilize.count = Math.max(1, num(v)); }, "연속 일치 횟수 변경")} />
-          </Field>
-        </div>
-      )}
-      {det.preset === "custom" && compact && <span className="meta">직접 설정 값은 시스템 설정에서 고칩니다</span>}
+    <div className="stack gap-half">
+      <span className="meta">{JUDGE_RULE}</span>
       <div className={`form-grid${compact ? " form-grid--2" : ""}`}>
         <Field label="차량 인식 기준 (0~1)">
           <TextInput mono type="number" step="0.05" value={car.conf}
             onCommit={(v) => edit((d) => { d.detection.classes.car = { ...(d.detection.classes.car ?? { enabled: true }), conf: num(v) }; }, "차량 인식 기준 변경")} />
         </Field>
-        {!compact && <ModelField />}
       </div>
-    </>
+    </div>
+  );
+}
+
+/** 점검용 (현장 운영에는 필요 없음): 보드가 쓰는 검출 모델 확인·교체 */
+export function MaintFields() {
+  return (
+    <div className="form-grid">
+      <ModelField />
+    </div>
   );
 }
 
