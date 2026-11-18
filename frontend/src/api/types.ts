@@ -66,7 +66,7 @@ export interface AppConfig {
     classes: Record<string, { enabled: boolean; conf: number }>;
     nms_iou: number;
     judge: { mode: "intersect" | "cover_ratio"; cover_ratio: number; cover_ratio_shared: number };
-    stabilize: { count: number };
+    stabilize: { to_occupied: number; to_empty: number }; // 상태를 바꾸는 연속 횟수: 빈칸→차량 있음 / 차량 있음→빈칸
     image_check: { black_mean: number; blur_var: number; frozen_cycles: number; noise_var: number };
   };
   slot_types: SlotType[];

@@ -62,7 +62,9 @@ class JudgeCfg(BaseModel):
 
 
 class StabilizeCfg(BaseModel):
-    count: int = Field(1, ge=1)  # 연속 N회 일치 시 상태 변경. 1 = 매 사이클 그대로
+    # 칸 상태를 바꾸려면 새 판정이 연속 몇 번 같아야 하는지 (1 = 바로 반영). 방향마다 따로
+    to_occupied: int = Field(2, ge=1, le=10)  # 빈칸 → 차량 있음 (만차)
+    to_empty: int = Field(2, ge=1, le=10)  # 차량 있음 → 빈칸 (공차)
 
 
 class ImageCheckCfg(BaseModel):
@@ -75,8 +77,8 @@ class ImageCheckCfg(BaseModel):
 
 
 PRESETS: dict[str, tuple[JudgeCfg, StabilizeCfg]] = {
-    "legacy": (JudgeCfg(mode="intersect"), StabilizeCfg(count=1)),
-    "standard": (JudgeCfg(mode="cover_ratio"), StabilizeCfg(count=2)),
+    "legacy": (JudgeCfg(mode="intersect"), StabilizeCfg(to_occupied=1, to_empty=1)),
+    "standard": (JudgeCfg(mode="cover_ratio"), StabilizeCfg()),
 }
 
 
@@ -91,10 +93,10 @@ class DetectionCfg(BaseModel):
     image_check: ImageCheckCfg = ImageCheckCfg()
 
     def effective(self) -> tuple[JudgeCfg, StabilizeCfg]:
-        """프리셋을 반영한 실제 판정/안정화 설정."""
+        """실제 판정/안정화 설정. 판정 규칙은 프리셋(standard) 고정, 연속 횟수는 설정 값."""
         if self.preset == "custom":
             return self.judge, self.stabilize
-        return PRESETS[self.preset]
+        return PRESETS[self.preset][0], self.stabilize
 
 
 FULL_COLOR = "red"  # 모두 차면 만공등은 항상 빨간색
@@ -253,6 +255,7 @@ class AppConfig(BaseModel):
         """예전 설정 파일 자동 변환.
         - 카메라마다 비밀번호가 있었으면 개별 계정으로 유지
         - 판정 방식 기존(legacy)·직접 설정(custom) → 개선 방식(standard)
+        - 연속 횟수 count 하나 → 차량 있음/빈칸 따로 (직접 설정이었으면 그 값, 아니면 2)
         - 버전 1: 기준 해상도(ref_size) 픽셀 좌표 → 렌즈 사진 대비 비율, 렌즈 1개
         """
         if not isinstance(data, dict):
@@ -261,8 +264,14 @@ class AppConfig(BaseModel):
             if isinstance(cam, dict) and "own_account" not in cam and cam.get("password"):
                 cam["own_account"] = True
         det = data.get("detection")
-        if isinstance(det, dict) and det.get("preset") in ("legacy", "custom"):
-            det["preset"] = "standard"  # 판정 방식 고정 (2026-11-18, docs/design.md 4절)
+        if isinstance(det, dict):
+            stab = det.get("stabilize") if isinstance(det.get("stabilize"), dict) else {}
+            if "to_occupied" not in stab and "to_empty" not in stab:
+                # 예전 count 는 직접 설정(custom)에서만 쓰였고, 기존·개선 방식은 횟수가 고정(개선 2회)이었다
+                n = stab.get("count", 1) if det.get("preset") == "custom" else 2
+                det["stabilize"] = {"to_occupied": n, "to_empty": n}
+            if det.get("preset") in ("legacy", "custom"):
+                det["preset"] = "standard"  # 판정 방식 고정 (2026-11-18, docs/design.md 4절)
         if int(data.get("schema_version") or 1) < 2:
             _migrate_v1(data)
         data["schema_version"] = SCHEMA_VERSION

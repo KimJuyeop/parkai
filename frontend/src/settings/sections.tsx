@@ -113,6 +113,8 @@ function ModelField() {
 export function JudgeFields({ compact }: P) {
   const { cfg, edit } = useCfg();
   const car = cfg.detection.classes.car ?? { enabled: true, conf: 0.7 };
+  const stab = cfg.detection.stabilize;
+  const cycle = cfg.runtime.cycle_target_sec;
   return (
     <div className="stack gap-half">
       <span className="meta">{JUDGE_RULE}</span>
@@ -121,10 +123,24 @@ export function JudgeFields({ compact }: P) {
           <TextInput mono type="number" step="0.05" value={car.conf}
             onCommit={(v) => edit((d) => { d.detection.classes.car = { ...(d.detection.classes.car ?? { enabled: true }), conf: num(v) }; }, "차량 인식 기준 변경")} />
         </Field>
+        <Field label="차량 있음 확인 (연속 회)">
+          <TextInput mono type="number" step="1" value={stab.to_occupied}
+            onCommit={(v) => edit((d) => { d.detection.stabilize.to_occupied = times(v); }, "차량 있음 확인 횟수 변경")} />
+        </Field>
+        <Field label="빈칸 확인 (연속 회)">
+          <TextInput mono type="number" step="1" value={stab.to_empty}
+            onCommit={(v) => edit((d) => { d.detection.stabilize.to_empty = times(v); }, "빈칸 확인 횟수 변경")} />
+        </Field>
       </div>
+      <span className="meta">
+        새 판정이 연속으로 이 횟수만큼 같아야 칸 상태를 바꿉니다. 판정 주기 {cycle}초에 2회면 {cycle}~{cycle * 2}초 뒤 반영됩니다.
+      </span>
     </div>
   );
 }
+
+/** 연속 확인 횟수: 1~10 정수 */
+const times = (v: string) => Math.min(10, Math.max(1, Math.round(num(v)) || 1));
 
 /** 점검용 (현장 운영에는 필요 없음): 보드가 쓰는 검출 모델 확인·교체 */
 export function MaintFields() {

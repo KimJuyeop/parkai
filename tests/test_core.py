@@ -289,7 +289,7 @@ def test_judge_preset_is_fixed_to_standard():
         data["detection"]["preset"] = old
         det = AppConfig.model_validate(json.loads(json.dumps(data))).detection
         assert det.preset == "standard"
-        assert det.effective() == PRESETS["standard"]
+        assert det.effective()[0] == PRESETS["standard"][0]
     det = AppConfig().detection
     assert (det.preset, det.model, det.classes["car"].conf) == ("standard", "yolov2t_hf", 0.7)
 
@@ -303,12 +303,24 @@ def test_camera_stabilizer_counts_single_cycle_blips():
     seq = [True, False, True, True, False, False, False, True]  # 깜빡임 1, 실제 변경 1 (2회 뒤 빈칸)
     states = [st.update({1: x})[1] for x in seq]
     assert states == [True, True, True, True, True, False, False, False]
-    assert st.stats() == {"blips": 1, "changes": 1, "blip_slots": {"1": 1}}
+    assert st.stats() == {
+        "blips": 1,
+        "blips_empty": 1,
+        "blips_occupied": 0,
+        "changes": 1,
+        "blip_slots": {"1": 1},
+    }
 
     st = CameraStabilizer(1)  # 연속 1회면 깜빡임이 그대로 상태 변경 두 번이 된다
     for x in (True, False, True):
         st.update({1: x})
-    assert st.stats() == {"blips": 1, "changes": 2, "blip_slots": {"1": 1}}
+    assert st.stats() == {
+        "blips": 1,
+        "blips_empty": 1,
+        "blips_occupied": 0,
+        "changes": 2,
+        "blip_slots": {"1": 1},
+    }
 
     st = CameraStabilizer(2)
     st.update({1: True})
@@ -316,3 +328,33 @@ def test_camera_stabilizer_counts_single_cycle_blips():
     st.update({})  # 화면 이상 등으로 이 칸을 판정하지 못한 주기
     st.update({1: True})
     assert st.stats()["blips"] == 0
+
+
+def test_stabilizer_counts_per_direction():
+    """차량 있음(만차)과 빈칸(공차)으로 바꾸는 연속 횟수를 따로 정할 수 있다."""
+    st = SlotStabilizer(1, 3)  # 차가 들어오면 바로, 빈칸은 3회 연속일 때
+    seq = [False, True, False, False, True, False, False, False]
+    assert [st.update(x) for x in seq] == [False, True, True, True, True, True, True, False]
+
+
+def test_stabilize_counts_migrate_from_single_count():
+    """예전 설정의 연속 횟수 하나(count)는 직접 설정일 때만 쓰였다 → 그 값, 아니면 개선 방식의 2회."""
+    import json
+    from pathlib import Path
+
+    from parkai.core.config import AppConfig
+
+    base = json.loads(Path("examples/config.example.json").read_text(encoding="utf-8"))
+
+    def stab(preset, stabilize):
+        d = json.loads(json.dumps(base))
+        d["detection"]["preset"] = preset
+        if stabilize is not None:
+            d["detection"]["stabilize"] = stabilize
+        s = AppConfig.model_validate(d).detection.effective()[1]
+        return s.to_occupied, s.to_empty
+
+    assert stab("standard", {"count": 1}) == (2, 2)  # 개선 방식은 늘 2회였다
+    assert stab("legacy", None) == (2, 2)
+    assert stab("custom", {"count": 3}) == (3, 3)
+    assert stab("standard", {"to_occupied": 1, "to_empty": 4}) == (1, 4)

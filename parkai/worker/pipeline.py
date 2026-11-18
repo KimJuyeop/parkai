@@ -27,7 +27,7 @@ import numpy as np
 
 from .. import __version__
 from ..backends import Detector
-from ..core.config import AppConfig, Camera, load_config
+from ..core.config import AppConfig, Camera, StabilizeCfg, load_config
 from ..core.geometry import Box
 from ..core.image_check import FrozenDetector, ImageStatus, inspect_view
 from ..core.layout import split_views
@@ -67,10 +67,10 @@ def camera_status(frames: list[LensFrame]) -> str:
 
 
 class CameraRuntime:
-    def __init__(self, cam: Camera, sources: list, stable_count: int):
+    def __init__(self, cam: Camera, sources: list, stab: StabilizeCfg):
         self.cam = cam
         self.sources = sources  # 렌즈별 입력
-        self.stabilizer = CameraStabilizer(stable_count)
+        self.stabilizer = CameraStabilizer(stab.to_occupied, stab.to_empty)
         self.frozen = [FrozenDetector() for _ in sources]
         self.states: dict[int, bool] = {}
         self.last_saved = 0.0
@@ -173,12 +173,12 @@ class Worker:
             if rt is None or rt.sig != sig:
                 old = rt
                 sources = [self._make_source(cam, i) for i in range(self.cfg.camera_lenses(cam))]
-                rt = CameraRuntime(cam, sources, stab.count)
+                rt = CameraRuntime(cam, sources, stab)
                 rt.sig = sig  # 카메라나 프로필(주소, 계정, 렌즈)이 바뀌면 입력을 새로 만든다
                 if old is not None and old.cam.slots == cam.slots:
                     rt.stabilizer, rt.states = old.stabilizer, old.states
                 self.cams[ip] = rt
-            rt.stabilizer.set_count(stab.count)
+            rt.stabilizer.set_counts(stab.to_occupied, stab.to_empty)
 
     # ---------- 단계 1: 수신 + 디코딩 + 화면 검사 (스레드 풀) ----------
 

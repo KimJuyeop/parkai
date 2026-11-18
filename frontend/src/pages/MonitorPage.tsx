@@ -90,7 +90,7 @@ function QuickSettings({ onClose, onGoSettings }: { onClose: () => void; onGoSet
   const sections: { id: Sec; title: string; summary: string; body: JSX.Element }[] = [
     { id: "basic", title: "기본 정보", summary: `판정 주기 ${cfg.runtime.cycle_target_sec}초`, body: <BasicFields compact /> },
     { id: "server", title: "서버 전송", summary: cfg.server.enabled ? "사용 중" : "사용 안 함", body: <ServerFields compact /> },
-    { id: "judge", title: "판정", summary: `인식 기준 ${cfg.detection.classes.car?.conf ?? "-"}`, body: <JudgeFields compact /> },
+    { id: "judge", title: "판정", summary: `인식 기준 ${cfg.detection.classes.car?.conf ?? "-"} · 확인 ${cfg.detection.stabilize.to_occupied}/${cfg.detection.stabilize.to_empty}회`, body: <JudgeFields compact /> },
     { id: "lamp", title: "만공등", summary: cfg.indicator.enabled ? "사용 중" : "사용 안 함", body: <LampFields /> },
   ];
   return (

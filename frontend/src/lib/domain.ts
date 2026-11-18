@@ -26,8 +26,8 @@ export const INDICATOR_COLORS: { id: IndicatorColor; name: string; hex: string }
 /** 만차일 때 만공등 색 (항상 빨강, 바꿀 수 없음) */
 export const FULL_LAMP = { name: "빨간색", hex: "#dc2626" } as const;
 
-/** 판정 방식 (고정, docs/design.md 4절). 화면에서 바꿀 수 있는 판정 값은 차량 인식 기준 하나 */
-export const JUDGE_RULE = "선분이 차량 박스에 60% 이상 덮이면 차량 있음 · 2회 연속 같을 때 반영";
+/** 판정 규칙 (고정, docs/design.md 4절). 화면에서 바꾸는 값은 차량 인식 기준과 연속 확인 횟수 */
+export const JUDGE_RULE = "선분이 차량 박스에 60% 이상 덮이면 차량 있음";
 
 /** 카메라의 렌즈 수 (프로필 값) */
 export function lensCount(cfg: AppConfig, cam: Camera): number {
