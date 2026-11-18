@@ -28,11 +28,20 @@ class SlotStabilizer:
 
 
 class CameraStabilizer:
-    """카메라 하나의 칸별 안정화기 묶음."""
+    """카메라 하나의 칸별 안정화기 묶음.
+
+    현장 시험용으로 워커가 켜진 뒤의 횟수를 센다 (판정에는 영향 없음):
+    - blips  : 판정이 한 주기만 달랐다가 돌아온 횟수 (차-빈-차, 빈-차-빈). 연속 1회였다면 깜빡였을 횟수
+    - changes: 실제로 상태를 바꾼 횟수 (시작 직후 첫 판정은 빼고)
+    판정하지 못한 주기(화면 이상, 응답 없음)가 끼면 그 앞뒤는 이어 보지 않는다.
+    """
 
     def __init__(self, count: int = 1):
         self.count = count
         self._slots: dict[int, SlotStabilizer] = {}
+        self._recent: dict[int, tuple[bool, ...]] = {}  # 칸별 최근 판정 (최대 2개)
+        self.blips: dict[int, int] = {}
+        self.changes: dict[int, int] = {}
 
     def set_count(self, count: int) -> None:
         if count != self.count:
@@ -44,8 +53,24 @@ class CameraStabilizer:
         out = {}
         for no, occ in observed.items():
             st = self._slots.setdefault(no, SlotStabilizer(self.count))
+            before = st.state
             out[no] = st.update(occ)
+            if before is not None and out[no] != before:
+                self.changes[no] = self.changes.get(no, 0) + 1
+            recent = self._recent.get(no, ())
+            if len(recent) == 2 and recent[0] != recent[1] and occ == recent[0]:
+                self.blips[no] = self.blips.get(no, 0) + 1
+            self._recent[no] = (*recent[-1:], occ)
         for no in list(self._slots):  # 삭제된 칸 정리
             if no not in observed:
                 del self._slots[no]
+                self._recent.pop(no, None)
         return out
+
+    def stats(self) -> dict:
+        """status.json 용: 워커가 켜진 뒤 합계와, 한 주기 깜빡임이 있었던 칸별 횟수."""
+        return {
+            "blips": sum(self.blips.values()),
+            "changes": sum(self.changes.values()),
+            "blip_slots": {str(no): n for no, n in sorted(self.blips.items())},
+        }

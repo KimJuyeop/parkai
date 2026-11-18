@@ -95,6 +95,7 @@ class Worker:
         self.data_dir = data_dir
         self.replay_dir = replay_dir
         self.device_id = device_id()
+        self.started_at = _now_iso()  # 깜빡임·변경 횟수(cameras.*.flicker)를 센 시작 시각
         self.cfg: AppConfig = load_config(config_path)
         self._model_name = self.cfg.detection.model
         self._model_error: str | None = None
@@ -228,6 +229,7 @@ class Worker:
         }
         if p.status not in ("ok", "partial"):
             info["states"] = {str(k): v for k, v in rt.states.items()}
+            info["flicker"] = rt.stabilizer.stats()
             self._save_images(rt, p, {}, changed=False)  # 화면 이상이어도 무엇이 보이는지는 대시보드에 표시
             return info
 
@@ -265,6 +267,7 @@ class Worker:
         info["states"] = {str(k): v for k, v in rt.states.items()}
         info["sent"] = complete
         info["boxes"] = sum(len(b) for b in boxes.values())
+        info["flicker"] = rt.stabilizer.stats()  # 워커가 켜진 뒤 한 주기 깜빡임·상태 변경 횟수 (현장 시험용)
         smoothed = [f.lens for f in p.frames if any(f.view_noisy)]
         if smoothed:  # 잡음이 많아(밤) 평균해 줄인 렌즈 (0부터). 현장에서 언제 켜지는지 확인용
             info["smoothed"] = smoothed
@@ -355,6 +358,7 @@ class Worker:
         status = {
             "version": __version__,
             "device_id": self.device_id,
+            "started_at": self.started_at,
             "cycle": cycle_no,
             "cycle_sec": round(elapsed, 3),
             "model": self._model_name,  # 지금 실제로 올라가 있는 모델

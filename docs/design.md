@@ -182,6 +182,8 @@ NPU 모델 yolov2t_hf (2026-11-09, 같은 30대·사진 60장, docs/training.md 
 - CPU 최대 62% 는 5분마다 30대 기록 이미지를 한꺼번에 저장한 사이클. 카메라마다 저장 시각을 흩도록 고침
 - 기본 모델 yolov2t_hf 로 확정 (2026-11-18, 야외·밤 사진 채점 뒤. GPU 모델 st_full_pc 는 예비로 보드에 둔다)
 
+현장 시험 목록 (실제 카메라 · 장애 · 재부팅, 깜빡임 횟수로 연속 2회 유지 여부 결정): [field_test.md](field_test.md)
+
 ## 미정 사항
 
 - 컨트롤러 IP(Jetson 설정의 controller_ip_address)의 역할

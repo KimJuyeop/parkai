@@ -292,3 +292,27 @@ def test_judge_preset_is_fixed_to_standard():
         assert det.effective() == PRESETS["standard"]
     det = AppConfig().detection
     assert (det.preset, det.model, det.classes["car"].conf) == ("standard", "yolov2t_hf", 0.7)
+
+
+def test_camera_stabilizer_counts_single_cycle_blips():
+    """한 주기만 달랐다가 돌아온 판정(깜빡임)과 실제 상태 변경을 센다.
+    판정 못 한 주기를 사이에 두면 잇지 않는다."""
+    from parkai.core.stabilizer import CameraStabilizer
+
+    st = CameraStabilizer(2)
+    seq = [True, False, True, True, False, False, False, True]  # 깜빡임 1, 실제 변경 1 (2회 뒤 빈칸)
+    states = [st.update({1: x})[1] for x in seq]
+    assert states == [True, True, True, True, True, False, False, False]
+    assert st.stats() == {"blips": 1, "changes": 1, "blip_slots": {"1": 1}}
+
+    st = CameraStabilizer(1)  # 연속 1회면 깜빡임이 그대로 상태 변경 두 번이 된다
+    for x in (True, False, True):
+        st.update({1: x})
+    assert st.stats() == {"blips": 1, "changes": 2, "blip_slots": {"1": 1}}
+
+    st = CameraStabilizer(2)
+    st.update({1: True})
+    st.update({1: False})
+    st.update({})  # 화면 이상 등으로 이 칸을 판정하지 못한 주기
+    st.update({1: True})
+    assert st.stats()["blips"] == 0

@@ -48,6 +48,8 @@ def test_one_cycle(tmp_path: Path):
     assert datetime.fromisoformat(cam["updated_at"]).tzinfo is not None
     assert cam["states"] == {"1": True, "2": False, "3": False, "4": False, "5": False}
     assert cam["smoothed"] == [0]  # 시험 사진 위쪽은 무작위 잡음이라 밤 화면처럼 평균해 줄인다
+    assert cam["flicker"] == {"blips": 0, "changes": 0, "blip_slots": {}}
+    assert datetime.fromisoformat(st["started_at"]).tzinfo is not None
     assert (tmp_path / "run" / "status.json").exists()
     # 웹 화면이 직접 그릴 수 있도록 검출 박스 [렌즈, x1, y1, x2, y2, 점수] (렌즈 사진 대비 비율)
     assert cam["dets"] == [
