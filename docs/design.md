@@ -160,6 +160,8 @@ API는 `/api/v1` 아래 REST. 화면은 React + TypeScript(`frontend/`)이고, P
 ## 7. 패키징과 배포
 
 - 오프라인 번들 하나: 앱 + Python wheel(cp312, aarch64) + 모델 + systemd + `install.sh`
+  - 라이브러리 버전은 `packaging/requirements-board.txt` 로 고정한다. 고정하지 않으면 번들을 만든 날의 최신 버전이 들어가
+    현장 업데이트가 라이브러리까지 바꾼다 (2026-11-19, 같은 날 만든 PC 개발 환경과 번들의 pydantic 버전이 달랐다)
 - 사무실: 사내 서버에서 한 줄 설치 / 현장: USB·scp 또는 웹 툴 업로드
 - `/opt/parkai/<버전>` + `current` 링크로 업데이트와 롤백
 - 설정은 업데이트해도 유지 (`/var/lib/parkai`)

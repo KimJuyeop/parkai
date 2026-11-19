@@ -37,12 +37,14 @@ cp "$ROOT/tools/compare_judge.py" "$ROOT/tools/bench_model.py" "$ROOT/tools/load
 mkdir -p "$STAGE/app/examples"
 cp "$ROOT/examples/config.example.json" "$STAGE/app/examples/config.default.json"
 
-# 보드용 wheel (numpy는 시스템 패키지 사용)
+# 보드용 wheel (numpy는 시스템 패키지 사용). 버전은 requirements-board.txt 로 고정
 python3 -m pip download --dest "$STAGE/wheels" \
   --platform manylinux2014_aarch64 --platform manylinux_2_28_aarch64 \
   --python-version 3.12 --implementation cp --only-binary=:all: \
-  "fastapi>=0.110" "uvicorn>=0.29" "pydantic>=2.6" "requests>=2.31"
+  -r "$ROOT/packaging/requirements-board.txt"
 python3 -m pip wheel --no-deps --wheel-dir "$STAGE/wheels" "$STAGE/app"
+# wheel 을 만들며 생긴 중간 파일은 번들에 넣지 않는다
+rm -rf "$STAGE/app/build" "$STAGE/app/"*.egg-info
 
 cp "$ROOT/packaging/install.sh" "$STAGE/"
 cp "$ROOT/packaging/systemd/"*.service "$STAGE/systemd/"

@@ -1,7 +1,7 @@
 #!/bin/sh
 # parkai 설치 스크립트 (초안)
 #
-# 번들 안에서 실행:   sudo ./install.sh [--site 이름] [--board 보드명]
+# 번들 안에서 실행:   sudo ./install.sh [--board 보드명]
 # 네트워크 없이 번들 안의 파일만으로 설치한다.
 #
 # TODO
@@ -16,12 +16,10 @@ PREFIX=/opt/$APP
 DATA=/var/lib/$APP
 HERE=$(cd "$(dirname "$0")" && pwd)
 VERSION=$(cat "$HERE/VERSION")
-SITE=""
 BOARD=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --site) SITE="$2"; shift 2 ;;
     --board) BOARD="$2"; shift 2 ;;
     *) echo "알 수 없는 옵션: $1"; exit 1 ;;
   esac
@@ -49,13 +47,12 @@ echo "[4/5] 설정"
 if [ ! -f "$DATA/config.json" ]; then
   cp "$HERE/app/examples/config.default.json" "$DATA/config.json"
 fi
-if [ -n "$SITE$BOARD" ]; then
-  "$DEST/venv/bin/python" - "$DATA/config.json" "$SITE" "$BOARD" <<'EOF'
+if [ -n "$BOARD" ]; then
+  "$DEST/venv/bin/python" - "$DATA/config.json" "$BOARD" <<'EOF'
 import json, sys
-p, site, board = sys.argv[1:]
+p, board = sys.argv[1:]
 c = json.load(open(p, encoding="utf-8"))
-if site: c.setdefault("site", {})["name"] = site
-if board: c.setdefault("site", {})["board_name"] = board
+c.setdefault("site", {})["board_name"] = board
 json.dump(c, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 EOF
 fi

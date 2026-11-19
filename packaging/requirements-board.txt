@@ -1,0 +1,23 @@
+# 보드 번들에 넣는 Python 라이브러리 (버전 고정)
+# 번들을 언제 만들어도 같은 버전이 들어가게 한다. 고정하지 않으면 만든 날의 최신 버전이 들어가서,
+# 현장 업데이트가 우리 코드만이 아니라 라이브러리까지 바꾸게 된다.
+# 바꿀 때는 PC 에서 이 버전으로 pytest 를 돌리고 사무실 보드에서 시험한 뒤 올린다.
+# (2026-11-19 고정: PC pytest 통과. OpenCV·numpy·stai_mpu 는 보드 시스템 패키지라 여기 없음)
+annotated_doc==0.0.7
+annotated_types==0.8.0
+anyio==4.16.0
+certifi==2026.10.23
+charset_normalizer==3.5.2
+click==8.5.1
+fastapi==0.165.0
+h11==0.16.0
+idna==3.20
+opentelemetry_api==1.45.2
+pydantic==2.14.3
+pydantic_core==2.50.4
+requests==2.34.2
+starlette==1.10.0
+typing_extensions==4.16.0
+typing_inspection==0.4.5
+urllib3==2.8.0
+uvicorn==0.54.0
