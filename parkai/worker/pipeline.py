@@ -256,7 +256,7 @@ class Worker:
         if complete:
             bip = board_ip(self.cfg.network.board_ip)
             self.sender.submit(cam.ip, build_payload(cam.ip, bip, rt.states))
-            color = decide_color(cam.slots, rt.states, self.cfg.slot_types)
+            color = decide_color(cam.slots, rt.states, self.cfg.slot_types, self.cfg.indicator.priority)
             if color:
                 user, password = self.cfg.camera_account(cam)
                 self.indicator.send(cam, profile, user, password, color)

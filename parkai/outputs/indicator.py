@@ -26,18 +26,22 @@ from ..core.config import FULL_COLOR, LED_RGB, Camera, CameraProfile, IndicatorC
 log = logging.getLogger(__name__)
 
 # 여러 종류의 빈칸이 섞여 있을 때 우선할 종류
-TYPE_PRIORITY = ["normal", "compact", "disabled", "ev"]
+TYPE_PRIORITY = ["normal", "compact", "disabled", "ev"]  # 기본 순서 (설정 indicator.priority)
 
 
-def decide_color(slots: list[Slot], states: dict[int, bool], types: list[SlotType]) -> str | None:
-    """카메라 하나의 만공등 색. 설정된 칸이 없으면 None."""
+def decide_color(
+    slots: list[Slot], states: dict[int, bool], types: list[SlotType], priority: list[str] | None = None
+) -> str | None:
+    """카메라 하나의 만공등 색. 설정된 칸이 없으면 None.
+    빈칸이 여러 종류면 priority 앞쪽 종류의 색 (없으면 기본 순서)."""
     if not slots:
         return None
     by_id = {t.id: t for t in types}
     empty_types = {s.type for s in slots if states.get(s.no) is False}
     if not empty_types:
         return FULL_COLOR
-    order = TYPE_PRIORITY + sorted(empty_types - set(TYPE_PRIORITY))
+    first = list(priority or TYPE_PRIORITY)
+    order = first + sorted(empty_types - set(first))
     for tid in order:
         if tid in empty_types:
             return by_id[tid].color_available

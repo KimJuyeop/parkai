@@ -139,6 +139,20 @@ export function JudgeFields({ compact }: P) {
   );
 }
 
+/** 만공등 우선순위 순서로 주차 종류 (설정에 빠진 종류는 뒤에) */
+function lampOrder(cfg: AppConfig) {
+  const order = cfg.indicator.priority ?? [];
+  const rank = (id: string) => { const i = order.indexOf(id as never); return i < 0 ? order.length : i; };
+  return [...cfg.slot_types].sort((a, b) => rank(a.id) - rank(b.id));
+}
+
+/** i 번째를 d(-1 위로, +1 아래로) 만큼 옮긴 새 순서 */
+function moved<T>(list: T[], i: number, d: number): T[] {
+  const out = [...list];
+  [out[i], out[i + d]] = [out[i + d], out[i]];
+  return out;
+}
+
 /** 연속 확인 횟수: 1~10 정수 */
 const times = (v: string) => Math.min(10, Math.max(1, Math.round(num(v)) || 1));
 
@@ -192,8 +206,16 @@ export function LampFields() {
             onCommit={(v) => edit((d) => { d.indicator.resend_sec = Math.max(10, num(v)); }, "만공등 재전송 주기 변경")} />
         </Field>
       </div>
-      {cfg.slot_types.map((t) => (
+      <span className="meta">빈칸이 여러 종류면 위쪽 종류의 색을 켭니다. 화살표로 순서를 바꿉니다.</span>
+      {lampOrder(cfg).map((t, i, list) => (
         <div key={t.id} className="lamp-row">
+          <span className="lamp-row__rank meta">{i + 1}순위</span>
+          <span className="row gap-half">
+            <button type="button" className="btn btn--ghost btn--icon" aria-label={`${t.name} 순위 올리기`} disabled={i === 0}
+              onClick={() => edit((d) => { d.indicator.priority = moved(list.map((x) => x.id), i, -1); }, `만공등 순위: ${t.name} 올림`)}>▲</button>
+            <button type="button" className="btn btn--ghost btn--icon" aria-label={`${t.name} 순위 내리기`} disabled={i === list.length - 1}
+              onClick={() => edit((d) => { d.indicator.priority = moved(list.map((x) => x.id), i, 1); }, `만공등 순위: ${t.name} 내림`)}>▼</button>
+          </span>
           <span className="lamp-row__name">{t.name}</span>
           <div role="radiogroup" aria-label={`${t.name} 빈칸 색`} className="row row--wrap gap-1">
             {INDICATOR_COLORS.map((c) => (
@@ -209,6 +231,8 @@ export function LampFields() {
         </div>
       ))}
       <div className="lamp-row">
+        <span className="lamp-row__rank meta">항상</span>
+        <span className="lamp-row__pad" aria-hidden="true" />
         <span className="lamp-row__name">만차</span>
         <span className="meta row">
           <span className="swatch__fill" style={{ background: FULL_LAMP.hex }} />{FULL_LAMP.name} (고정)

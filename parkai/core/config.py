@@ -220,6 +220,19 @@ class IndicatorCfg(BaseModel):
     protocol: Literal["idis"] = "idis"  # IDIS 카메라 Web API ledControl
     led_type: Literal["internal", "external"] = "internal"  # 카메라 내장 LED / 카메라에 연결한 외부 등
     resend_sec: float = 60.0  # 색이 같아도 이 주기마다 다시 보낸다 (카메라 재부팅 대비)
+    # 빈칸이 여러 종류일 때 어느 종류의 색을 켤지 (앞일수록 먼저). 주차 종류 id 4개의 순서
+    priority: list[str] = [i for i, _ in FIXED_SLOT_TYPES]
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def _priority_all_types(cls, v) -> list[str]:
+        """아는 종류만 순서대로 한 번씩, 빠진 종류는 기본 순서로 뒤에 붙인다."""
+        ids = [i for i, _ in FIXED_SLOT_TYPES]
+        out = []
+        for t in v or []:
+            if t in ids and t not in out:
+                out.append(t)
+        return out + [i for i in ids if i not in out]
 
 
 class AppConfig(BaseModel):

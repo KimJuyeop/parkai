@@ -358,3 +358,20 @@ def test_stabilize_counts_migrate_from_single_count():
     assert stab("legacy", None) == (2, 2)
     assert stab("custom", {"count": 3}) == (3, 3)
     assert stab("standard", {"to_occupied": 1, "to_empty": 4}) == (1, 4)
+
+
+def test_lamp_color_follows_priority():
+    """빈칸이 여러 종류면 우선순위 앞쪽 종류의 색. 순서 설정은 빠진·모르는 종류를 정리한다."""
+    from parkai.core.config import AppConfig, IndicatorCfg, Slot
+
+    cfg = AppConfig()
+    line = ((0.1, 0.5), (0.3, 0.5))
+    s = [Slot(no=1, line=line, type="normal"), Slot(no=2, line=line, type="disabled")]
+    both_empty = {1: False, 2: False}
+    assert decide_color(s, both_empty, cfg.slot_types, cfg.indicator.priority) == "green"  # 기본: 일반 먼저
+    first_disabled = IndicatorCfg(priority=["disabled", "normal"]).priority
+    assert first_disabled == ["disabled", "normal", "compact", "ev"]
+    assert decide_color(s, both_empty, cfg.slot_types, first_disabled) == "blue"
+    assert decide_color(s, {1: False, 2: True}, cfg.slot_types, first_disabled) == "green"  # 빈 종류만 본다
+    assert decide_color(s, {1: True, 2: True}, cfg.slot_types, first_disabled) == "red"
+    assert IndicatorCfg(priority=["ev", "ev", "truck"]).priority == ["ev", "normal", "compact", "disabled"]

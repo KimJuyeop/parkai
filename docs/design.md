@@ -138,6 +138,7 @@ API는 `/api/v1` 아래 REST. 화면은 React + TypeScript(`frontend/`)이고, P
 
 - 서버: [protocol.md](protocol.md)
 - 만공등: 카메라마다 하나 (렌즈가 2개여도 하나). 설정된 칸 중 빈칸이 있으면 빈칸 색, 모두 차면 빨강. 주차 종류별 색 지정.
+  - 빈칸이 여러 종류면 우선순위가 높은 종류의 색 (`indicator.priority`, 기본 일반 > 경차 > 장애인 > 전기차, 화면에서 순서 변경)
   판정할 수 없을 때는 명령을 보내지 않아 마지막 상태 유지.
 - IDIS 카메라 Web API (v1.6, `/cgi-bin/webSetup.cgi`, 카메라 계정 HTTP 인증)
   - 스냅샷: `action=videoStreamSnapshot&mode=1&streamIndex=N&channel=K`.

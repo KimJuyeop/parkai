@@ -73,7 +73,13 @@ export interface AppConfig {
   camera_profiles: Record<string, CameraProfile>;
   cameras: Camera[];
   server: { enabled: boolean; base_url: string; path: string; timeout_sec: number };
-  indicator: { enabled: boolean; protocol: "idis"; led_type: "internal" | "external"; resend_sec: number };
+  indicator: {
+    enabled: boolean;
+    protocol: "idis";
+    led_type: "internal" | "external";
+    resend_sec: number;
+    priority: SlotTypeId[]; // 빈칸이 여러 종류일 때 먼저 켤 종류 순서
+  };
 }
 
 export interface Resources {
