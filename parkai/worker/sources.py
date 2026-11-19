@@ -16,6 +16,11 @@ class SourceError(Exception):
     pass
 
 
+class Unreachable(SourceError):
+    """카메라가 연결되지 않거나 응답하지 않음. 같은 카메라의 다른 렌즈도 받을 수 없다고 본다.
+    (인증 실패·서버 오류·이미지가 아닌 응답은 카메라는 살아 있으므로 SourceError)"""
+
+
 URL_FIELDS = "{ip}, {ipaddress}, {port}, {channel}"
 
 
@@ -53,9 +58,11 @@ class HttpSnapshotSource:
         elif profile.auth == "digest":
             self.session.auth = HTTPDigestAuth(user, password)
 
-    def fetch(self) -> tuple[bytes, str | None]:
+    def fetch(self, retry: bool = True) -> tuple[bytes, str | None]:
+        """retry=False 면 한 번만 시도한다 (지난 주기에 응답 없던 카메라: 주기 전체가 늘어나지 않게)."""
         last: Exception | None = None
-        for _ in range(self.retries + 1):
+        down = False
+        for _ in range(self.retries + 1 if retry else 1):
             try:
                 r = self.session.get(self.url, timeout=self.timeout)
                 if r.status_code == 401:
@@ -65,9 +72,11 @@ class HttpSnapshotSource:
                     head = r.content[:120].decode("utf-8", "replace")
                     raise SourceError(f"이미지가 아닌 응답 ({r.headers.get('Content-Type')}): {head}")
                 return r.content, None
+            except (requests.ConnectionError, requests.Timeout) as e:
+                last, down = e, True
             except requests.RequestException as e:
-                last = e
-        raise SourceError(f"{self.url} - {last}")
+                last, down = e, False
+        raise (Unreachable if down else SourceError)(f"{self.url} - {last}")
 
 
 class BrokenSource:
@@ -76,7 +85,7 @@ class BrokenSource:
     def __init__(self, error: str):
         self.error = error
 
-    def fetch(self) -> tuple[bytes, str | None]:
+    def fetch(self, retry: bool = True) -> tuple[bytes, str | None]:
         raise SourceError(self.error)
 
 
@@ -93,7 +102,7 @@ class ReplaySource:
         self.files = sorted(p for p in folder.glob("*") if p.suffix.lower() in IMAGE_EXT)
         self.i = 0
 
-    def fetch(self) -> tuple[bytes, str | None]:
+    def fetch(self, retry: bool = True) -> tuple[bytes, str | None]:
         if not self.files:
             raise SourceError("재생할 이미지 없음")
         p = self.files[self.i % len(self.files)]

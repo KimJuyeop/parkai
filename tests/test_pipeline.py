@@ -303,3 +303,99 @@ def test_record_save_failure_does_not_break_judging(tmp_path):
     assert cam["status"] == "ok" and cam["sent"] is True
     assert "기록" in w._disk_log.failing()
     w.stop()
+
+
+def test_unreachable_camera_fetch(monkeypatch):
+    """응답 없는 카메라는 Unreachable (재시도 포함 시간만 기다림), retry=False 면 한 번만.
+    카메라가 답은 하는 오류(서버 오류 등)는 SourceError 라서 다른 렌즈는 그대로 받는다."""
+    import socket
+    import threading
+    import time
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    from parkai.core.config import Camera, CameraProfile
+    from parkai.worker.sources import HttpSnapshotSource, SourceError, Unreachable
+
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+    hang = socket.socket()  # 연결은 받지만 답하지 않는 카메라
+    hang.bind(("127.0.0.1", 0))
+    hang.listen(8)
+
+    class Err(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(500)
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+
+    err = HTTPServer(("127.0.0.1", 0), Err)
+    threading.Thread(target=err.serve_forever, daemon=True).start()
+    prof = CameraProfile(snapshot_url="http://{ip}:{port}/snap?ch={channel}", auth="none")
+
+    def timed(port, retry):
+        src = HttpSnapshotSource(Camera(ip="127.0.0.1", port=port, profile="p"), prof, 0.3, 1)
+        t = time.perf_counter()
+        try:
+            src.fetch(retry=retry)
+        except SourceError as e:
+            return type(e), time.perf_counter() - t
+        raise AssertionError("실패해야 함")
+
+    kind, sec = timed(hang.getsockname()[1], True)
+    assert kind is Unreachable and 0.55 < sec < 1.2  # 0.3초 × 2번
+    kind, sec = timed(hang.getsockname()[1], False)
+    assert kind is Unreachable and 0.25 < sec < 0.6  # 한 번만
+    kind, _ = timed(err.server_address[1], True)
+    assert kind is SourceError
+    err.shutdown()
+    hang.close()
+
+
+def test_unreachable_camera_does_not_hold_the_cycle(tmp_path: Path):
+    """렌즈 하나가 응답 없으면 같은 카메라의 다른 렌즈는 건너뛰고, 다음 주기에는 재시도 없이 한 번만 받는다.
+    (응답 없는 렌즈 2개 카메라 하나가 받기 제한 3초 × 2번 × 2렌즈 = 12초 동안 주기 전체를 붙잡았다)"""
+    from parkai.worker.sources import SourceError, Unreachable
+
+    data = json.loads(Path("examples/config.example.json").read_text(encoding="utf-8"))
+    cam = data["cameras"][0]
+    cam["profile"] = "IDIS 렌즈 2개"
+    cam["slots"] = [
+        {"no": 1, "lens": 0, "line": [[0.2, 0.5], [0.3, 0.5]]},
+        {"no": 2, "lens": 1, "line": [[0.2, 0.5], [0.3, 0.5]]},
+    ]
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(json.dumps(data), encoding="utf-8")
+    for ch in (1, 2):
+        d = tmp_path / "replay" / "192.168.13.21" / f"ch{ch}"
+        d.mkdir(parents=True)
+        cv2.imwrite(str(d / "0001.jpg"), make_frame())
+    jpeg = (tmp_path / "replay" / "192.168.13.21" / "ch1" / "0001.jpg").read_bytes()
+
+    class Lens:
+        def __init__(self, plan):
+            self.plan, self.calls = list(plan), []
+
+        def fetch(self, retry=True):
+            self.calls.append(retry)
+            r = self.plan.pop(0) if len(self.plan) > 1 else self.plan[0]
+            if isinstance(r, Exception):
+                raise r
+            return jpeg, None
+
+    down, broken = Unreachable("응답 없음"), SourceError("500")
+    lens1 = Lens([down, down, "ok", "ok", broken, "ok"])
+    lens2 = Lens(["ok"])
+    w = Worker(
+        cfg_path, load_detector("fixture", None), tmp_path / "run", tmp_path / "data", tmp_path / "replay"
+    )
+    w.cams["192.168.13.21"].sources = [lens1, lens2]
+    sts = [w.run_cycle(n)["cameras"]["192.168.13.21"] for n in range(1, 7)]
+    w.stop()
+
+    assert sts[0]["status"] == "no_response" and "건너뜀" in sts[0]["error"]
+    # 응답 없음 → 렌즈2 건너뜀, 다음 주기 한 번만 → 회복한 주기도 한 번만 → 그다음부터 재시도 있음
+    assert lens1.calls == [True, False, False, True, True, True]
+    # 렌즈2 는 렌즈1 이 답한 주기에만 받는다. 서버 오류(5번째)는 카메라가 살아 있으므로 그대로 받는다
+    assert lens2.calls == [False, True, True, True]
+    assert [s["status"] for s in sts] == ["no_response", "no_response", "ok", "ok", "partial", "ok"]

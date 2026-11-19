@@ -38,7 +38,7 @@ from ..outputs.indicator import IndicatorController, decide_color
 from ..outputs.server import ServerSender, build_payload
 from .analyze import LensFrame, detect_lens, dets_for_web, judge_camera, slot_in_px
 from .draw import annotate
-from .sources import BrokenSource, HttpSnapshotSource, ReplaySource, SourceError, replay_folder
+from .sources import BrokenSource, HttpSnapshotSource, ReplaySource, SourceError, Unreachable, replay_folder
 
 log = logging.getLogger(__name__)
 
@@ -76,6 +76,10 @@ class CameraRuntime:
         self.states: dict[int, bool] = {}
         self.last_saved = 0.0
         self.sig: tuple | None = None
+        # 이번(받기 중) 또는 지난 주기에 카메라가 연결·응답하지 않았는지.
+        # 응답 없는 카메라는 받기 제한 × 시도 횟수 × 렌즈 수만큼 주기 전체를 붙잡으므로 (렌즈 2개면 12초),
+        # 한 렌즈가 응답 없으면 나머지 렌즈는 건너뛰고, 다음 주기에는 재시도 없이 한 번만 시도한다
+        self.unreachable = False
 
 
 class Worker:
@@ -186,13 +190,17 @@ class Worker:
 
     # ---------- 단계 1: 수신 + 디코딩 + 화면 검사 (스레드 풀) ----------
 
-    def _prepare_lens(self, rt: CameraRuntime, lens: int, timings: dict[str, float]) -> LensFrame:
+    def _prepare_lens(
+        self, rt: CameraRuntime, lens: int, timings: dict[str, float], retry: bool = True
+    ) -> LensFrame:
         cam = rt.cam
         t = time.perf_counter()
         try:
-            jpeg, key = rt.sources[lens].fetch()
+            jpeg, key = rt.sources[lens].fetch(retry=retry)
         except SourceError as e:
             timings["fetch"] = timings.get("fetch", 0) + time.perf_counter() - t
+            if isinstance(e, Unreachable):
+                rt.unreachable = True
             return LensFrame(lens, "no_response", error=str(e))
         timings["fetch"] = timings.get("fetch", 0) + time.perf_counter() - t
 
@@ -217,7 +225,14 @@ class Worker:
 
     def _prepare(self, rt: CameraRuntime) -> Prepared:
         timings: dict[str, float] = {}
-        frames = [self._prepare_lens(rt, i, timings) for i in range(len(rt.sources))]
+        retry = not rt.unreachable  # 지난 주기에 응답 없던 카메라는 한 번만 시도
+        rt.unreachable = False
+        frames: list[LensFrame] = []
+        for i in range(len(rt.sources)):
+            if rt.unreachable:  # 앞 렌즈에서 카메라가 응답하지 않았다: 같은 카메라라 기다리지 않는다
+                frames.append(LensFrame(i, "no_response", error="카메라 응답 없음 (앞 렌즈 실패로 건너뜀)"))
+            else:
+                frames.append(self._prepare_lens(rt, i, timings, retry))
         errors = [f"렌즈{f.lens + 1}: {f.error}" if len(frames) > 1 else f.error for f in frames if f.error]
         return Prepared(rt.cam, camera_status(frames), frames, timings, "; ".join(errors) or None)
 
