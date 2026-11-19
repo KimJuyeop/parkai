@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import shutil
 import socket
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 def device_id() -> str:
@@ -80,15 +82,34 @@ def resources(storage_dir: Path) -> dict:
     }
 
 
-def board_ip(preferred: str | None = None) -> str:
-    """설정값이 있으면 그 값, 없으면 기본 경로로 나가는 인터페이스의 IP."""
-    if preferred:
-        return preferred
+def _route_src(host: str) -> str | None:
+    """host 로 보낼 때 쓰일 이 보드의 IP. 경로가 없으면 None (실제로 패킷을 보내지 않음)."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        s.connect(("10.255.255.255", 1))  # 실제로 패킷을 보내지 않음
+        s.connect((host, 1))
         return s.getsockname()[0]
     except OSError:
-        return "0.0.0.0"
+        return None
     finally:
         s.close()
+
+
+def _ipv4_host(url: str) -> str | None:
+    """URL 의 호스트가 IPv4 주소일 때만 돌려준다 (이름이면 DNS 를 기다리게 되므로 쓰지 않는다)."""
+    try:
+        host = urlsplit(url).hostname
+        return host if host and ipaddress.ip_address(host).version == 4 else None
+    except ValueError:
+        return None
+
+
+def board_ip(server_url: str = "") -> str:
+    """서버 전송에 실을 보드 IP: 서버로 나가는 인터페이스의 IP.
+
+    현장은 인터넷이 없어 기본 게이트웨이를 안 둘 수 있다. 기본 경로로만 찾으면 그때 0.0.0.0 이 나가므로
+    서버 주소로 먼저 찾고, 서버 주소가 없거나 이름이면 기본 경로 쪽 IP 를 쓴다.
+    """
+    for host in (_ipv4_host(server_url), "10.255.255.255"):
+        if host and (ip := _route_src(host)):
+            return ip
+    return "0.0.0.0"

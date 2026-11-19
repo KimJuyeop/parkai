@@ -15,18 +15,10 @@ export function BasicFields({ compact }: P) {
   const { cfg, edit } = useCfg();
   return (
     <div className={`form-grid${compact ? " form-grid--2" : ""}`}>
-      <Field label="현장명" className={compact ? "span-2" : ""}>
-        <TextInput value={cfg.site.name} onCommit={(v) => edit((d) => { d.site.name = v; }, "현장명 변경")} />
-      </Field>
       <Field label="보드명">
-        <TextInput value={cfg.site.board_name} onCommit={(v) => edit((d) => { d.site.board_name = v; }, "보드명 변경")} />
+        <TextInput value={cfg.site.board_name} placeholder="비우면 모든 카메라"
+          onCommit={(v) => edit((d) => { d.site.board_name = v.trim(); }, "보드명 변경")} />
       </Field>
-      {!compact && (
-        <Field label="전송용 보드 IP">
-          <TextInput mono value={cfg.network.board_ip ?? ""} placeholder="자동"
-            onCommit={(v) => edit((d) => { d.network.board_ip = v.trim() || null; }, "보드 IP 변경")} />
-        </Field>
-      )}
       <Field label="판정 주기 (초)">
         <TextInput mono type="number" step="1" value={cfg.runtime.cycle_target_sec}
           onCommit={(v) => edit((d) => { d.runtime.cycle_target_sec = num(v); }, "판정 주기 변경")} />

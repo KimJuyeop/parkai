@@ -3,7 +3,7 @@ import { BasicFields, FileFields, JudgeFields, LampFields, MaintFields, Profiles
 import { useCfg } from "../state/AppState";
 
 const SECTIONS = [
-  { id: "basic", title: "기본 정보", note: "보드명은 카메라의 '담당 보드'와 비교해 이 보드가 처리할 카메라를 정합니다. 전송용 보드 IP를 비우면 자동으로 읽습니다." },
+  { id: "basic", title: "기본 정보", note: "보드명은 카메라의 '담당 보드'와 비교해 이 보드가 처리할 카메라를 정합니다. 비워 두면 모든 카메라를 처리합니다. 보드가 한 대인 현장은 비워 둡니다." },
   { id: "server", title: "서버 전송", note: "카메라마다 판정 주기마다 주차면 상태를 보냅니다. 전송 테스트는 저장된 설정으로 한 번 보내 봅니다." },
   { id: "judge", title: "판정", note: "칸 선분과 차량 박스로 칸마다 차량 유무를 정합니다. 차량 인식 기준을 낮추면 어둡거나 그늘진 차도 잡지만, 너무 낮추면 차가 아닌 곳에도 박스가 생깁니다. 확인 횟수를 늘리면 잠깐 가려지거나 잘못 잡힌 판정에 덜 흔들리지만 반영이 늦어집니다. 차가 있는 칸을 빈칸으로 안내하는 쪽이 더 위험하므로, 늘린다면 빈칸 확인 쪽을 먼저 늘립니다." },
   { id: "lamp", title: "만공등", note: "카메라마다 하나입니다. 빈칸이 있을 때 켜질 색을 주차 종류별로 고르고, 모두 차면 항상 빨간색입니다. 색이 바뀔 때와 정해진 주기마다 카메라로 보냅니다." },
@@ -57,8 +57,6 @@ export function SettingsPage() {
         {system && (
           <div className="meta stack gap-half toc__info">
             <span className="mono">{system.version}</span>
-            <span>{system.board_model}</span>
-            <span className="mono">{system.board_ip}</span>
           </div>
         )}
       </nav>

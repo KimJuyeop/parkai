@@ -21,13 +21,9 @@ Rect = tuple[float, float, float, float]  # x, y, w, h (렌즈 사진 대비 비
 
 
 class SiteInfo(BaseModel):
-    name: str = ""  # 현장명 (표시용)
-    board_name: str = ""  # 보드명 (표시용, 카메라 배정 기준)
-
-
-class NetworkCfg(BaseModel):
-    interface: str | None = None  # 보드 IP를 읽을 인터페이스. None이면 자동
-    board_ip: str | None = None  # 지정하면 전송 시 이 값을 사용
+    # 카메라의 담당 보드(board)와 비교해 이 보드가 처리할 카메라를 정한다. 비우면 모든 카메라를 처리
+    # (현장명·전송용 보드 IP·network 는 2026-11-19 에 뺐다. 예전 설정 파일의 값은 읽을 때 무시된다)
+    board_name: str = ""
 
 
 class ResultsCfg(BaseModel):
@@ -240,7 +236,6 @@ class IndicatorCfg(BaseModel):
 class AppConfig(BaseModel):
     schema_version: int = SCHEMA_VERSION
     site: SiteInfo = SiteInfo()
-    network: NetworkCfg = NetworkCfg()
     runtime: RuntimeCfg = RuntimeCfg()
     detection: DetectionCfg = DetectionCfg()
     slot_types: list[SlotType] = DEFAULT_SLOT_TYPES

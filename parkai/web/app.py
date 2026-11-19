@@ -78,7 +78,7 @@ def system():
         "version": BUILD,
         "device_id": device_id(),
         "board_model": board_model(),
-        "board_ip": board_ip(cfg.network.board_ip),
+        "board_ip": board_ip(cfg.server.base_url),
         "site": cfg.site.model_dump(),
         "model": cfg.detection.model,
         "preset": cfg.detection.preset,
@@ -266,7 +266,7 @@ def server_test(camera_ip: str | None = Body(None, embed=True)):
     if p.exists():
         cam = json.loads(p.read_text(encoding="utf-8")).get("cameras", {}).get(ip, {})
         states = {int(k): v for k, v in cam.get("states", {}).items()}
-    payload = build_payload(ip, board_ip(cfg.network.board_ip), states)
+    payload = build_payload(ip, board_ip(cfg.server.base_url), states)
     try:
         r = requests.post(cfg.server.url, json=payload, timeout=cfg.server.timeout_sec)
         return {"url": cfg.server.url, "status_code": r.status_code, "body": r.text[:500], "payload": payload}

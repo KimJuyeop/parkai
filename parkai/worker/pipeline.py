@@ -258,7 +258,7 @@ class Worker:
         t = time.perf_counter()
         complete = len(rt.states) == len(cam.slots)
         if complete:
-            bip = board_ip(self.cfg.network.board_ip)
+            bip = board_ip(self.cfg.server.base_url)
             self.sender.submit(cam.ip, build_payload(cam.ip, bip, rt.states))
             color = decide_color(cam.slots, rt.states, self.cfg.slot_types, self.cfg.indicator.priority)
             if color:

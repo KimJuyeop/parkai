@@ -420,3 +420,37 @@ def test_cycle_log_summarizes_and_reports_camera_changes(caplog):
     summaries = [m for m in msgs if m.startswith("최근")]
     assert len(summaries) == 2 and "주기 넘김 1회" in summaries[0]
     assert len(msgs) == 5
+
+
+def test_board_ip_prefers_route_to_server(monkeypatch):
+    """기본 게이트웨이가 없는 현장: 서버 주소로 먼저 찾고, 이름 주소는 DNS 를 기다리지 않게 건너뛴다."""
+    from parkai.core import system
+
+    routes = {"192.168.11.10": "192.168.11.50"}  # 기본 경로(10.255.255.255)는 없음
+    monkeypatch.setattr(system, "_route_src", lambda host: routes.get(host))
+    assert system.board_ip("http://192.168.11.10:8000") == "192.168.11.50"
+    assert system.board_ip("http://server.local:8000") == "0.0.0.0"  # 이름 주소 + 기본 경로 없음
+    assert system.board_ip("") == "0.0.0.0"
+    routes["10.255.255.255"] = "192.168.0.105"  # 기본 경로가 있는 망
+    assert system.board_ip("http://server.local:8000") == "192.168.0.105"
+    assert system.board_ip("") == "192.168.0.105"
+
+
+def test_old_config_with_removed_fields_still_loads(tmp_path):
+    """현장명·network 가 들어 있는 예전 설정 파일도 그대로 읽힌다 (값은 무시)."""
+    import json
+
+    p = tmp_path / "config.json"
+    p.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "site": {"name": "옛 현장", "board_name": "B1"},
+                "network": {"interface": None, "board_ip": "10.0.0.9"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    cfg = load_config(p)
+    assert cfg.site.board_name == "B1"
+    assert "network" not in cfg.model_dump() and "name" not in cfg.site.model_dump()

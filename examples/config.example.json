@@ -1,11 +1,7 @@
 {
   "schema_version": 2,
   "site": {
-    "name": "테스트 현장",
     "board_name": "B1-A"
-  },
-  "network": {
-    "board_ip": null
   },
   "runtime": {
     "cycle_target_sec": 10,

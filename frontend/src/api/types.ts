@@ -51,8 +51,7 @@ export interface SlotType {
 
 export interface AppConfig {
   schema_version: number;
-  site: { name: string; board_name: string };
-  network: { interface: string | null; board_ip: string | null };
+  site: { board_name: string };
   runtime: {
     cycle_target_sec: number;
     fetch_concurrency: number;
@@ -94,7 +93,7 @@ export interface SystemInfo {
   device_id: string;
   board_model: string;
   board_ip: string;
-  site: { name: string; board_name: string };
+  site: { board_name: string };
   model: string | null;
   preset: Preset;
   config_path: string;
