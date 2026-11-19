@@ -25,7 +25,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from .. import __version__
+from .. import BUILD
 from ..backends import Detector
 from ..core.config import AppConfig, Camera, StabilizeCfg, load_config
 from ..core.geometry import Box
@@ -380,7 +380,7 @@ class Worker:
             except OSError as e:
                 self._disk_log.fail("기록 정리", str(e))
         status = {
-            "version": __version__,
+            "version": BUILD,
             "device_id": self.device_id,
             "started_at": self.started_at,
             "cycle": cycle_no,

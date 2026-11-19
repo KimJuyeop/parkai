@@ -11,6 +11,11 @@ set -eu
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 VERSION=$(python3 -c "import tomllib;print(tomllib.load(open('$ROOT/pyproject.toml','rb'))['project']['version'])")
 NAME="parkai-$VERSION-stm32mp25"
+# 빌드 이름: 버전-날짜-커밋 (고친 파일이 커밋 전이면 -dirty). 보드에는 /opt/parkai/<빌드 이름> 으로 따로 설치돼
+# 이전 빌드로 되돌릴 수 있다. 파일 이름(NAME)은 그대로 두어 설치 명령이 바뀌지 않게 한다
+COMMIT=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo nogit)
+git -C "$ROOT" diff --quiet HEAD -- 2>/dev/null || COMMIT="$COMMIT-dirty"
+BUILD="$VERSION-$(date +%Y%m%d)-$COMMIT"
 OUT="$ROOT/packaging/out"
 STAGE="$OUT/$NAME"
 
@@ -23,6 +28,8 @@ test -f "$ROOT/parkai/web/static/index.html" || { echo "웹 화면 빌드 실패
 
 # 앱
 cp -r "$ROOT/parkai" "$ROOT/pyproject.toml" "$ROOT/README.md" "$STAGE/app/"
+find "$STAGE/app" -name __pycache__ -type d -prune -exec rm -rf {} +
+echo "BUILD = \"$BUILD\"" > "$STAGE/app/parkai/_build.py"
 # 보드에서 쓰는 점검 도구 (모델 비교 등). 설치 후 /opt/parkai/current/tools
 mkdir -p "$STAGE/app/tools"
 cp "$ROOT/tools/compare_judge.py" "$ROOT/tools/bench_model.py" "$ROOT/tools/load_test.py" \
@@ -35,15 +42,15 @@ python3 -m pip download --dest "$STAGE/wheels" \
   --platform manylinux2014_aarch64 --platform manylinux_2_28_aarch64 \
   --python-version 3.12 --implementation cp --only-binary=:all: \
   "fastapi>=0.110" "uvicorn>=0.29" "pydantic>=2.6" "requests>=2.31"
-python3 -m pip wheel --no-deps --wheel-dir "$STAGE/wheels" "$ROOT"
+python3 -m pip wheel --no-deps --wheel-dir "$STAGE/wheels" "$STAGE/app"
 
 cp "$ROOT/packaging/install.sh" "$STAGE/"
 cp "$ROOT/packaging/systemd/"*.service "$STAGE/systemd/"
 mkdir -p "$STAGE/journald"
 cp "$ROOT/packaging/journald/parkai.conf" "$STAGE/journald/"
-echo "$VERSION" > "$STAGE/VERSION"
+echo "$BUILD" > "$STAGE/VERSION"
 chmod +x "$STAGE/install.sh"
 
 tar -C "$OUT" -czf "$OUT/$NAME.tar.gz" "$NAME"
 sha256sum "$OUT/$NAME.tar.gz" > "$OUT/$NAME.tar.gz.sha256"
-echo "생성: $OUT/$NAME.tar.gz"
+echo "생성: $OUT/$NAME.tar.gz  (빌드 $BUILD)"

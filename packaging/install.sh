@@ -63,14 +63,24 @@ chown -R $APP:$APP "$DATA"
 chmod 600 "$DATA/config.json"
 
 echo "[5/5] 서비스"
+PREV=$(readlink "$PREFIX/current" 2>/dev/null || true)
 # 시스템 로그는 RAM 에만, 50MB 까지 (SD카드에 쓰지 않음)
 mkdir -p /etc/systemd/journald.conf.d
 cp "$HERE/journald/parkai.conf" /etc/systemd/journald.conf.d/parkai.conf
 systemctl restart systemd-journald || true
+if [ -n "$PREV" ] && [ "$PREV" != "$DEST" ]; then ln -sfn "$PREV" "$PREFIX/previous"; fi
 ln -sfn "$DEST" "$PREFIX/current"
+# SD 용량: 지금 것과 최근 2개만 남긴다 (current·previous 가 가리키는 폴더는 남김)
+for d in $(ls -1dt $(find "$PREFIX" -mindepth 1 -maxdepth 1 -type d) | tail -n +4); do
+  [ "$d" = "$DEST" ] || [ "$d" = "$PREV" ] || rm -rf "$d"
+done
 cp "$HERE/systemd/"*.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now parkai-worker parkai-web
 systemctl restart parkai-worker parkai-web
 
 echo "설치 완료: $VERSION  (웹: http://<보드 IP>/)"
+if [ -n "$PREV" ] && [ "$PREV" != "$DEST" ]; then
+  echo "이전 빌드: $(basename "$PREV")"
+  echo "되돌리기: ln -sfn \$(readlink $PREFIX/previous) $PREFIX/current && systemctl restart parkai-worker parkai-web"
+fi

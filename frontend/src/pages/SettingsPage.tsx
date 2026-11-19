@@ -56,7 +56,7 @@ export function SettingsPage() {
         ))}
         {system && (
           <div className="meta stack gap-half toc__info">
-            <span className="mono">v{system.version}</span>
+            <span className="mono">{system.version}</span>
             <span>{system.board_model}</span>
             <span className="mono">{system.board_ip}</span>
           </div>

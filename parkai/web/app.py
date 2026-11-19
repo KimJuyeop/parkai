@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
-from .. import __version__
+from .. import BUILD, __version__
 from ..core.config import LED_RGB, AppConfig, load_config
 from ..core.system import board_ip, board_model, device_id, resources
 from ..outputs.indicator import led_url, return_code
@@ -75,7 +75,7 @@ def _errors(e: ValidationError) -> list[str]:
 def system():
     cfg = _cfg()
     return {
-        "version": __version__,
+        "version": BUILD,
         "device_id": device_id(),
         "board_model": board_model(),
         "board_ip": board_ip(cfg.network.board_ip),
