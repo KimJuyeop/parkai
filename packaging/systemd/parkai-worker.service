@@ -1,7 +1,8 @@
 [Unit]
 Description=parkai inference worker
-After=network-online.target
-Wants=network-online.target
+# 네트워크가 '완전히 연결'될 때까지 기다리지 않는다: 안 쓰는 이더넷 포트가 있으면 부팅 후 최대 2분 늦게 켜졌다
+# (2026-11-19 평가보드). 카메라는 매 사이클 다시 부르고 보드 IP 도 보낼 때마다 구하므로 늦게 붙어도 괜찮다
+After=network.target
 
 [Service]
 Type=simple
