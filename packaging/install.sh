@@ -63,6 +63,10 @@ chown -R $APP:$APP "$DATA"
 chmod 600 "$DATA/config.json"
 
 echo "[5/5] 서비스"
+# 시스템 로그는 RAM 에만, 50MB 까지 (SD카드에 쓰지 않음)
+mkdir -p /etc/systemd/journald.conf.d
+cp "$HERE/journald/parkai.conf" /etc/systemd/journald.conf.d/parkai.conf
+systemctl restart systemd-journald || true
 ln -sfn "$DEST" "$PREFIX/current"
 cp "$HERE/systemd/"*.service /etc/systemd/system/
 systemctl daemon-reload

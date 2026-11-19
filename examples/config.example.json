@@ -15,7 +15,7 @@
     "results": {
       "enabled": true,
       "max_mb": 100,
-      "save_interval_sec": 300
+      "save_interval_sec": 3600
     }
   },
   "detection": {

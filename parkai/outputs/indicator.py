@@ -22,6 +22,7 @@ import requests
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
 from ..core.config import FULL_COLOR, LED_RGB, Camera, CameraProfile, IndicatorCfg, Slot, SlotType
+from ..core.logutil import FailureLog
 
 log = logging.getLogger(__name__)
 
@@ -73,6 +74,7 @@ class IndicatorController:
         self._cv = threading.Condition()
         self._stop = False
         self.last_error: dict[str, str] = {}
+        self._fail_log = FailureLog(log, "만공등 전송")
         self._thread = threading.Thread(target=self._loop, name="indicator", daemon=True)
         self._thread.start()
 
@@ -120,6 +122,7 @@ class IndicatorController:
                     raise RuntimeError(f"returnCode={code}")
                 self._sent[ip] = (color, time.monotonic())
                 self.last_error.pop(ip, None)
+                self._fail_log.ok(ip)
             except (requests.RequestException, RuntimeError) as e:
                 self.last_error[ip] = str(e)
-                log.warning("만공등 전송 실패 (%s, %s): %s", ip, color, e)
+                self._fail_log.fail(ip, f"{color}: {e}")

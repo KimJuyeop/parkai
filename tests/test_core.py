@@ -375,3 +375,48 @@ def test_lamp_color_follows_priority():
     assert decide_color(s, {1: False, 2: True}, cfg.slot_types, first_disabled) == "green"  # 빈 종류만 본다
     assert decide_color(s, {1: True, 2: True}, cfg.slot_types, first_disabled) == "red"
     assert IndicatorCfg(priority=["ev", "ev", "truck"]).priority == ["ev", "normal", "compact", "disabled"]
+
+
+def test_failure_log_only_on_change_interval_and_recovery(caplog):
+    """같은 실패는 처음, 내용이 바뀔 때, 10분마다, 복구될 때만 남긴다."""
+    import logging
+
+    from parkai.core.logutil import FailureLog
+
+    now = [0.0]
+    fl = FailureLog(logging.getLogger("t"), "서버 전송", every=600, clock=lambda: now[0])
+    with caplog.at_level(logging.INFO, logger="t"):
+        for _ in range(100):  # 5초마다 실패 100번 (약 8분)
+            fl.fail("", "timeout")
+            now[0] += 5
+        assert len(caplog.records) == 1
+        fl.fail("", "refused")  # 내용이 바뀜
+        now[0] += 700
+        fl.fail("", "refused")  # 10분 지남
+        fl.ok("")
+        fl.ok("")  # 이미 복구됨: 다시 남기지 않음
+    msgs = [r.getMessage() for r in caplog.records]
+    assert len(msgs) == 4
+    assert "실패 계속" in msgs[1] and "refused" in msgs[1] and "복구" in msgs[3]
+
+
+def test_cycle_log_summarizes_and_reports_camera_changes(caplog):
+    """사이클마다 남기지 않고 첫 사이클, 이상 카메라가 바뀔 때, 10분 요약만."""
+    import logging
+
+    from parkai.core.logutil import CycleLog
+
+    now = [0.0]
+    cl = CycleLog(logging.getLogger("c"), every=600, clock=lambda: now[0])
+    with caplog.at_level(logging.INFO, logger="c"):
+        for i in range(241):  # 5초마다 20분
+            bad = ["1.2.3.4(no_response)"] if 100 <= i < 110 else []
+            cl.add(1.9 if i != 50 else 6.0, 5.0, 20, bad)
+            now[0] += 5
+    msgs = [r.getMessage() for r in caplog.records]
+    assert msgs[0].startswith("첫 사이클")
+    assert sum("이상 카메라 ['1.2.3.4(no_response)']" in m for m in msgs) == 1
+    assert sum("이상 카메라 없음" in m for m in msgs) == 1
+    summaries = [m for m in msgs if m.startswith("최근")]
+    assert len(summaries) == 2 and "주기 넘김 1회" in summaries[0]
+    assert len(msgs) == 5

@@ -36,7 +36,9 @@ class ResultsCfg(BaseModel):
 
     enabled: bool = True
     max_mb: int = Field(default=100, ge=10)  # 저장 상한. 넘으면 오래된 것부터 지운다
-    save_interval_sec: int = Field(default=300, ge=60)  # 상태 변화가 없어도 이 주기마다 1장 저장
+    # 상태 변화가 없어도 이 주기마다 1장 저장. SD카드 쓰기를 줄이려 1시간
+    # (원인 확인에는 상태가 바뀐 순간의 사진이 쓸모 있다)
+    save_interval_sec: int = Field(default=3600, ge=60)
 
 
 class RuntimeCfg(BaseModel):

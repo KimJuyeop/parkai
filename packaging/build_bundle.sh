@@ -38,6 +38,8 @@ python3 -m pip wheel --no-deps --wheel-dir "$STAGE/wheels" "$ROOT"
 
 cp "$ROOT/packaging/install.sh" "$STAGE/"
 cp "$ROOT/packaging/systemd/"*.service "$STAGE/systemd/"
+mkdir -p "$STAGE/journald"
+cp "$ROOT/packaging/journald/parkai.conf" "$STAGE/journald/"
 echo "$VERSION" > "$STAGE/VERSION"
 chmod +x "$STAGE/install.sh"
 

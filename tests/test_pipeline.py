@@ -285,3 +285,21 @@ def test_detect_lens_smooths_only_noisy_views():
     detect_lens(det, noisy, {"car": 0.5}, 0.45)
     detect_lens(det, LensFrame(0, "ok", img, views=views, view_ok=[True, True]), {"car": 0.5}, 0.45)
     assert det.calls == [False, True, False, False]
+
+
+def test_record_save_failure_does_not_break_judging(tmp_path):
+    """기록 이미지를 못 써도(저장 공간 부족 등) 카메라는 정상 판정·전송한다."""
+    cfg_path = tmp_path / "config.json"
+    shutil.copy("examples/config.example.json", cfg_path)
+    cam_dir = tmp_path / "replay" / "192.168.13.21"
+    cam_dir.mkdir(parents=True)
+    cv2.imwrite(str(cam_dir / "0001.jpg"), make_frame())
+    data = tmp_path / "data"
+    w = Worker(cfg_path, load_detector("fixture", None), tmp_path / "run", data, tmp_path / "replay")
+    shutil.rmtree(data / "results", ignore_errors=True)
+    (data / "results").write_text("디렉터리 자리에 파일이 있어 저장이 실패한다")
+    st = w.run_cycle(1)
+    cam = st["cameras"]["192.168.13.21"]
+    assert cam["status"] == "ok" and cam["sent"] is True
+    assert "기록" in w._disk_log.failing()
+    w.stop()

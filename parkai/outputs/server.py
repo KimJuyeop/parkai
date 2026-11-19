@@ -17,6 +17,7 @@ import threading
 import requests
 
 from ..core.config import MAX_SLOTS_PER_CAMERA, ServerCfg
+from ..core.logutil import FailureLog
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class ServerSender:
         self._session = requests.Session()
         self._stop = False
         self.last_error: str | None = None
+        self._fail_log = FailureLog(log, "서버 전송")  # 서버는 하나라 카메라마다 나누지 않는다
         self._thread = threading.Thread(target=self._loop, name="server-sender", daemon=True)
         self._thread.start()
 
@@ -71,6 +73,7 @@ class ServerSender:
                 r = self._session.post(self.cfg.url, json=payload, timeout=self.cfg.timeout_sec)
                 r.raise_for_status()
                 self.last_error = None
+                self._fail_log.ok("")
             except requests.RequestException as e:
                 self.last_error = str(e)
-                log.warning("서버 전송 실패 (%s): %s", cam_ip, e)
+                self._fail_log.fail("", f"{cam_ip}: {e}")

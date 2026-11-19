@@ -31,6 +31,7 @@ from ..core.config import AppConfig, Camera, StabilizeCfg, load_config
 from ..core.geometry import Box
 from ..core.image_check import FrozenDetector, ImageStatus, inspect_view
 from ..core.layout import split_views
+from ..core.logutil import CycleLog, FailureLog
 from ..core.stabilizer import CameraStabilizer
 from ..core.system import board_ip, device_id
 from ..outputs.indicator import IndicatorController, decide_color
@@ -96,6 +97,9 @@ class Worker:
         self.replay_dir = replay_dir
         self.device_id = device_id()
         self.started_at = _now_iso()  # 깜빡임·변경 횟수(cameras.*.flicker)를 센 시작 시각
+        self._cycle_log = CycleLog(log)
+        # 이미지 저장 실패(저장 공간 부족 등)는 판정·전송에 영향을 주지 않게 넘기고 가끔만 남긴다
+        self._disk_log = FailureLog(log, "이미지 저장")
         self.cfg: AppConfig = load_config(config_path)
         self._model_name = self.cfg.detection.model
         self._model_error: str | None = None
@@ -278,6 +282,20 @@ class Worker:
     def _save_images(
         self, rt: CameraRuntime, p: Prepared, boxes: dict[int, list[Box]], changed: bool
     ) -> None:
+        try:
+            self._save_latest(rt, p)
+            self._disk_log.ok("최신")
+        except OSError as e:
+            self._disk_log.fail("최신", str(e))
+        if p.status not in ("ok", "partial"):
+            return
+        try:
+            self._save_record(rt, p, boxes, changed)
+            self._disk_log.ok("기록")
+        except OSError as e:
+            self._disk_log.fail("기록", str(e))
+
+    def _save_latest(self, rt: CameraRuntime, p: Prepared) -> None:
         cam = rt.cam
         # 최신 이미지: 받은 렌즈 원본 그대로 (웹 화면이 분석 영역만 보여 주고 선·박스를 직접 그림). RAM 디스크
         for f in p.frames:
@@ -292,9 +310,11 @@ class Worker:
                     break
                 except PermissionError:
                     time.sleep(0.05)
-        if p.status not in ("ok", "partial"):
-            return
 
+    def _save_record(
+        self, rt: CameraRuntime, p: Prepared, boxes: dict[int, list[Box]], changed: bool
+    ) -> None:
+        cam = rt.cam
         # 기록 이미지: 상태가 바뀌었을 때 + 주기마다, 렌즈를 나란히 붙여 선·박스를 그려 저장 (이때만 인코딩)
         if not self.cfg.runtime.results.enabled:
             return
@@ -354,7 +374,11 @@ class Worker:
                 cameras[rt.cam.ip] = {"status": "error", "error": str(e)}
         elapsed = time.perf_counter() - t0
         if cycle_no % 30 == 0:
-            self._enforce_results_limit()
+            try:
+                self._enforce_results_limit()
+                self._disk_log.ok("기록 정리")
+            except OSError as e:
+                self._disk_log.fail("기록 정리", str(e))
         status = {
             "version": __version__,
             "device_id": self.device_id,
@@ -382,14 +406,10 @@ class Worker:
             n += 1
             start = time.monotonic()
             st = self.run_cycle(n)
-            bad = [ip for ip, c in st["cameras"].items() if c.get("status") != "ok"]
-            log.info(
-                "사이클 %d: %.2fs, 카메라 %d대, 이상 %s",
-                n,
-                st["cycle_sec"],
-                len(st["cameras"]),
-                bad or "없음",
+            bad = sorted(
+                f"{ip}({c.get('status')})" for ip, c in st["cameras"].items() if c.get("status") != "ok"
             )
+            self._cycle_log.add(st["cycle_sec"], self.cfg.runtime.cycle_target_sec, len(st["cameras"]), bad)
             wait = self.cfg.runtime.cycle_target_sec - (time.monotonic() - start)
             if wait > 0 and (max_cycles is None or n < max_cycles):
                 time.sleep(wait)
