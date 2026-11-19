@@ -57,10 +57,18 @@ export function handledHere(cfg: AppConfig, cam: Camera): boolean {
   return cam.enabled && (!cam.board || !me || cam.board === me);
 }
 
+/**
+ * 지난 시간(초). now 는 보드 시각(status.now): 현장은 인터넷이 없어 보드 시계가 틀릴 수 있으므로
+ * 보드가 남긴 시각은 보드 시계끼리 비교한다. now 가 없을 때(예전 보드)만 브라우저 시계를 쓴다.
+ */
+export function ageSec(iso: string, now?: string): number {
+  const ref = now ? new Date(now).getTime() : Date.now();
+  return Math.max(0, (ref - new Date(iso).getTime()) / 1000);
+}
+
 export function workerAlive(status: WorkerStatus, cfg: AppConfig): boolean {
   if (!status.running || !status.updated_at) return false;
-  const age = (Date.now() - new Date(status.updated_at).getTime()) / 1000;
-  return age < Math.max(30, cfg.runtime.cycle_target_sec * 3);
+  return ageSec(status.updated_at, status.now) < Math.max(30, cfg.runtime.cycle_target_sec * 3);
 }
 
 export type SlotState = boolean | null;
@@ -73,9 +81,9 @@ export const stateLabel = (s: SlotState) => (s === true ? "차량 있음" : s ==
 /** 판정 결과 글자 색 클래스 */
 export const stateTextClass = (s: SlotState) => (s === true ? "text-occ" : s === false ? "text-free" : "muted");
 
-export function ago(iso?: string): string {
+export function ago(iso?: string, now?: string): string {
   if (!iso) return "";
-  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  const s = Math.round(ageSec(iso, now));
   return s < 60 ? `${s}초 전` : s < 3600 ? `${Math.floor(s / 60)}분 전` : `${Math.floor(s / 3600)}시간 전`;
 }
 

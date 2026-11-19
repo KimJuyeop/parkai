@@ -1,5 +1,6 @@
 import type { Camera } from "../api/types";
 import { ago, ms, slotType, stateLabel } from "../lib/domain";
+import { useCfg } from "../state/AppState";
 import { CameraLenses } from "./CameraLenses";
 import { Icon } from "./Icon";
 import { SlotChip } from "./ui";
@@ -7,6 +8,7 @@ import { useCameraImages, useCameraView } from "./useCamera";
 
 /** 모니터링 카드: 영상(누르면 크게 보기) · 칸 칩 · 처리 시간 · 선 편집 */
 export function CameraCard({ cam, onOpen, onEdit }: { cam: Camera; onOpen: () => void; onEdit: () => void }) {
+  const { status } = useCfg();
   const view = useCameraView(cam)!;
   const img = useCameraImages(cam);
   const cs = view.cs;
@@ -27,7 +29,7 @@ export function CameraCard({ cam, onOpen, onEdit }: { cam: Camera; onOpen: () =>
               <span className="media__ip">{cam.ip}</span>
               <span className="spacer" />
               {view.offline && <span className="badge badge--solid-bad">응답 없음</span>}
-              <span className="media__time">{cs?.updated_at ? ago(cs.updated_at) : ""}</span>
+              <span className="media__time">{cs?.updated_at ? ago(cs.updated_at, status.now) : ""}</span>
             </div>
           }
         />

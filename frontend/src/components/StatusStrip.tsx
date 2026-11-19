@@ -77,7 +77,7 @@ export function StatusStrip() {
           <>
             <span className="stat__value"><span className={`dot ${status.server_error ? "dot--bad" : "dot--ok"}`} />{status.server_error ? "오류" : "정상"}</span>
             <span className="meta ellipsis" title={status.server_error ?? undefined}>
-              {status.server_error ?? (alive ? `${ago(status.updated_at)} 전송` : "-")}
+              {status.server_error ?? (alive ? `${ago(status.updated_at, status.now)} 전송` : "-")}
             </span>
           </>
         )}

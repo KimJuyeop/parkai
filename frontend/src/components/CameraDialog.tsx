@@ -12,7 +12,7 @@ import { useCameraImages, useCameraView, useSlotEditing } from "./useCamera";
  * 창을 닫아도 남는다 (화면 아래 저장 바에서 저장/되돌리기).
  */
 export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startEditing: boolean; onClose: () => void }) {
-  const { cfg, changes, save, revert, saveError } = useCfg();
+  const { cfg, changes, save, revert, saveError, status } = useCfg();
   const [editingMode, setEditingMode] = useState(startEditing);
   const [showDets, setShowDets] = useState(false);
   const editing = useSlotEditing(ip);
@@ -28,7 +28,7 @@ export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startE
     <Dialog label={`${ip} 카메라`} width={1180} onClose={onClose}>
       <div className="panel__head panel__head--wrap">
         <span className="mono title">{ip}</span>
-        <span className="meta">{view.cs?.updated_at ? `${ago(view.cs.updated_at)} 갱신 · ` : ""}{cam.slots.length}칸</span>
+        <span className="meta">{view.cs?.updated_at ? `${ago(view.cs.updated_at, status.now)} 갱신 · ` : ""}{cam.slots.length}칸</span>
         {view.offline && <span className="badge badge--bad">응답 없음</span>}
         {editingMode && <span className="badge badge--accent">선 편집 중</span>}
         <span className="spacer" />

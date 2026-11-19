@@ -45,6 +45,21 @@ def test_status_when_worker_not_running(tmp_path, monkeypatch):
     assert client.get("/api/v1/status").json()["running"] is False
 
 
+def test_status_includes_board_time(tmp_path, monkeypatch):
+    """화면이 경과 시간을 보드 시계끼리 비교하도록 응답에 보드 시각(시간대 포함)을 붙인다.
+    현장은 인터넷이 없어 보드 시계가 틀릴 수 있어, 브라우저 시계와 비교하면 워커가 돌아도 '정지'로 보인다."""
+    import json
+    from datetime import datetime
+
+    client, _ = make_client(tmp_path, monkeypatch)
+    (tmp_path / "run").mkdir(parents=True, exist_ok=True)
+    old = {"updated_at": "2020-01-01T00:00:00+00:00", "cameras": {}}
+    (tmp_path / "run" / "status.json").write_text(json.dumps(old))
+    got = client.get("/api/v1/status").json()
+    assert got["running"] is True
+    assert datetime.fromisoformat(got["now"]).tzinfo is not None
+
+
 def test_snapshot_bad_url_template_is_clear_error(tmp_path, monkeypatch):
     client, cfg = make_client(tmp_path, monkeypatch)
     data = json.loads(cfg.read_text(encoding="utf-8"))

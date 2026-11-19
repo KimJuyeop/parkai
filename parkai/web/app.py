@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -114,6 +115,9 @@ def status():
         return JSONResponse({"running": False, "cameras": {}}, status_code=200)
     data = json.loads(p.read_text(encoding="utf-8"))
     data["running"] = True
+    # 보드 시각: 화면이 '몇 초 전'·워커 정지를 보드 시계끼리 비교하게 한다. 현장은 인터넷(시간 동기화)이 없어
+    # 보드 시계가 틀릴 수 있는데, 브라우저 시계와 비교하면 워커가 돌아도 '정지'로 보인다
+    data["now"] = datetime.now(UTC).astimezone().isoformat(timespec="seconds")
     return data
 
 

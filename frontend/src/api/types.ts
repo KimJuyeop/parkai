@@ -134,6 +134,8 @@ export interface WorkerStatus {
   /** 설정의 모델을 올리지 못했을 때의 안내 (기존 모델로 계속 판정 중) */
   model_error?: string | null;
   updated_at?: string;
+  /** 응답할 때의 보드 시각. 경과 시간은 이것과 비교한다 (브라우저 시계와 비교하지 않음) */
+  now?: string;
   server_error?: string | null;
   cameras: Record<string, CameraStatus>;
 }
