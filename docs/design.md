@@ -34,7 +34,7 @@
 ├ parkai-web     FastAPI :80  웹 설정 툴, 설정 API, 상태 조회
 ├ parkai-worker  추론 워커    수신 → 분할 → NPU 추론 → 판정 → 안정화 → 출력
 ├ 설정/상태       SQLite (1차 골격은 JSON 파일)
-├ /run/parkai     최신 결과 이미지, status.json (RAM, eMMC 쓰기 없음)
+├ /run/parkai     최신 결과 이미지, status.json (RAM, SD카드 쓰기 없음)
 └ /var/lib/parkai 설정, 기록 이미지(용량 상한), 모델
 ```
 
@@ -50,7 +50,7 @@
 | Cortex-A35 ×2 | CPU가 약함 → JPEG 디코딩/이미지 저장 최소화 |
 | NPU 1.35 TOPS | 추론은 여유 |
 | DDR4 4GB | 여유 |
-| eMMC 4GB | 빠듯함 → 기록 이미지 상한, 쓰기 최소화 |
+| SD카드 (평가보드·양산 모두) | 쓰기 반복에 따른 수명, 쓰는 중 전원 차단 시 손상 → 기록 이미지 상한, 쓰기 최소화 |
 | 이더넷 | 1포트 기준 설계 |
 | User LED/버튼 | 상태 표시, 네트워크 초기화 (보드 프로필) |
 
