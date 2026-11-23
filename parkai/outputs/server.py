@@ -1,8 +1,10 @@
 """주차면 상태 서버 전송.
 
 POST {base_url}/api/camerastatuses
-{"data": {"ipaddress": <카메라 IP>, "boardip": <보드 IP>, "ps01": "1"|"2"|"unknown", ... "ps12"}}
-  "1" 차량 있음 / "2" 차량 없음 / "unknown" 설정 안 된 칸
+{"data": {"ipaddress": <카메라 IP>, "boardip": <보드 IP>,
+          "camerano": "0", "status": "0", "parkingstatus": "0", "ps01": "1"|"0"|"unknown", ... "ps12"}}
+  "1" 차량 있음 / "0" 차량 없음 / "unknown" 설정 안 된 칸
+  camerano·status·parkingstatus 는 서버 camerastatus 표의 칸이라 항상 "0" (빠지면 서버가 NULL 로 넣다 실패)
 
 - 카메라마다 매 사이클 최신 상태를 보낸다 (대기열 없음, 실패 시 다음 사이클에 다시 감)
 - 판정할 수 없는 카메라(응답 없음, 화면 이상)는 보내지 않는다
@@ -21,11 +23,17 @@ from ..core.logutil import FailureLog
 
 log = logging.getLogger(__name__)
 
-OCCUPIED, EMPTY, UNKNOWN = "1", "2", "unknown"
+OCCUPIED, EMPTY, UNKNOWN = "1", "0", "unknown"
 
 
 def build_payload(camera_ip: str, board_ip: str, states: dict[int, bool]) -> dict:
-    data: dict[str, str] = {"ipaddress": camera_ip, "boardip": board_ip}
+    data: dict[str, str] = {
+        "ipaddress": camera_ip,
+        "boardip": board_ip,
+        "camerano": "0",
+        "status": "0",
+        "parkingstatus": "0",
+    }
     for no in range(1, MAX_SLOTS_PER_CAMERA + 1):
         st = states.get(no)
         data[f"ps{no:02d}"] = UNKNOWN if st is None else (OCCUPIED if st else EMPTY)

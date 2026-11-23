@@ -12,8 +12,11 @@ Content-Type: application/json
   "data": {
     "ipaddress": "192.168.11.3",
     "boardip": "192.168.20.1",
+    "camerano": "0",
+    "status": "0",
+    "parkingstatus": "0",
     "ps01": "1",
-    "ps02": "2",
+    "ps02": "0",
     "ps03": "unknown",
     "ps04": "unknown",
     "ps05": "unknown",
@@ -32,7 +35,10 @@ Content-Type: application/json
 |---|---|
 | `ipaddress` | 카메라 IP |
 | `boardip` | 판정한 보드 IP |
-| `ps01`~`ps12` | 칸별 상태. `"1"` 차량 있음 / `"2"` 차량 없음 / `"unknown"` 설정 안 된 칸 |
+| `camerano`, `status`, `parkingstatus` | 항상 `"0"`. 서버 `camerastatus` 표의 칸이라 빠지면 서버가 NULL 로 넣다 실패한다 |
+| `ps01`~`ps12` | 칸별 상태. `"1"` 차량 있음 / `"0"` 차량 없음 / `"unknown"` 설정 안 된 칸 |
+
+2026-11-23 사무실 서버 시험에서 고침: 처음 규격은 차량 없음 `"2"` 에 세 칸이 없었다.
 
 ## 동작 규칙
 

@@ -173,7 +173,9 @@ def test_slot_lens_must_exist():
 def test_payload_values():
     p = build_payload("192.168.11.3", "192.168.20.1", {1: True, 2: False})["data"]
     assert p["ipaddress"] == "192.168.11.3" and p["boardip"] == "192.168.20.1"
-    assert (p["ps01"], p["ps02"], p["ps03"], p["ps12"]) == ("1", "2", "unknown", "unknown")
+    assert (p["ps01"], p["ps02"], p["ps03"], p["ps12"]) == ("1", "0", "unknown", "unknown")
+    # 서버 camerastatus 표의 칸: 빠지면 서버가 NULL 로 넣다 실패한다 (2026-11-23 사무실 서버)
+    assert (p["camerano"], p["status"], p["parkingstatus"]) == ("0", "0", "0")
     assert len([k for k in p if k.startswith("ps")]) == 12
 
 
