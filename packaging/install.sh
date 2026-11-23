@@ -67,8 +67,9 @@ cp "$HERE/journald/parkai.conf" /etc/systemd/journald.conf.d/parkai.conf
 systemctl restart systemd-journald || true
 if [ -n "$PREV" ] && [ "$PREV" != "$DEST" ]; then ln -sfn "$PREV" "$PREFIX/previous"; fi
 ln -sfn "$DEST" "$PREFIX/current"
-# SD 용량: 지금 것과 최근 2개만 남긴다 (current·previous 가 가리키는 폴더는 남김)
-for d in $(ls -1dt $(find "$PREFIX" -mindepth 1 -maxdepth 1 -type d) | tail -n +4); do
+# SD 용량: 지금 것과 최근 2개만 남긴다 (current·previous 가 가리키는 폴더는 남김).
+# 빌드 폴더(숫자로 시작: 0.1.0, 0.1.0-20261123-ed076b4)만 지운다. dev 처럼 손으로 만든 폴더는 건드리지 않는다
+for d in $(ls -1dt $(find "$PREFIX" -mindepth 1 -maxdepth 1 -type d -name '[0-9]*') | tail -n +4); do
   [ "$d" = "$DEST" ] || [ "$d" = "$PREV" ] || rm -rf "$d"
 done
 cp "$HERE/systemd/"*.service /etc/systemd/system/
