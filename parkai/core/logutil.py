@@ -14,6 +14,18 @@ from collections.abc import Callable
 SUMMARY_SEC = 600.0  # 요약·같은 실패를 다시 남기는 간격 (10분)
 
 
+def rss_mb() -> float | None:
+    """이 프로세스의 실제 메모리(VmRSS, MB). /proc 이 없으면(PC 윈도우 등) None."""
+    try:
+        with open("/proc/self/status", encoding="ascii") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return int(line.split()[1]) / 1024
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
 class FailureLog:
     """같은 실패를 매번 남기지 않는다.
 
@@ -93,10 +105,12 @@ class CycleLog:
         log: logging.Logger,
         every: float = SUMMARY_SEC,
         clock: Callable[[], float] = time.monotonic,
+        rss: Callable[[], float | None] = rss_mb,
     ):
         self._log = log
         self.every = every
         self._clock = clock
+        self._rss = rss
         self._bad: list[str] | None = None
         self._reset(clock())
 
@@ -135,8 +149,11 @@ class CycleLog:
         if target_sec > 0 and cycle_sec > target_sec:
             self._over += 1
         if now - self._t0 >= self.every:
+            # 메모리: 밤새 늘어나는지(누수) 다음 날 로그만으로 볼 수 있게
+            mem = self._rss()
             self._log.info(
-                "최근 %d분: 사이클 %d회, 처리 평균 %.2fs, 최대 %.2fs, 주기 넘김 %d회, 카메라 %d대, 이상 %s",
+                "최근 %d분: 사이클 %d회, 처리 평균 %.2fs, 최대 %.2fs, 주기 넘김 %d회, "
+                "카메라 %d대, 이상 %s, 메모리 %s",
                 round((now - self._t0) / 60),
                 self._n,
                 self._sum / self._n,
@@ -144,5 +161,6 @@ class CycleLog:
                 self._over,
                 cameras,
                 bad or "없음",
+                f"{mem:.0f}MB" if mem is not None else "-",
             )
             self._reset(now)

@@ -68,30 +68,30 @@
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: var(--sp-4); }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column; }
 .card--offline { border-color: var(--bad); }
-.card__media { display: block; width: 100%; padding: 0; border: none; background: none; cursor: zoom-in; }
+.card__media { position: relative; container-type: inline-size; display: flex; flex-direction: column; background: var(--media); }
+.card__open { flex: 1 1 auto; display: flex; flex-direction: column; width: 100%; padding: 0; border: none; background: none; cursor: zoom-in; }
+.card__edit { position: absolute; right: var(--sp-2); bottom: var(--sp-2); display: inline-flex; align-items: center; gap: var(--sp-1); height: 28px; padding: 0 var(--sp-2); border: none; border-radius: var(--radius); background: var(--media-tag); color: var(--media-fg); font-size: var(--fs-meta); }
+.card__edit:hover { background: var(--media-pop); }
+/* 좁은 카드(렌즈 1개, 작은 칸)는 '선 편집' 글자를 빼고 아이콘만 */
+@container (max-width: 279px) {
+  .card__edit { width: 28px; padding: 0; justify-content: center; }
+  .card__edit-label { display: none; }
+}
 /* 한 줄의 카드끼리 영상·칸·아래 줄 높이를 맞춘다 (subgrid). 가로로 긴 렌즈(2036x880 등)는 위아래가 어둡게 남는다.
    subgrid 를 모르는 브라우저는 위의 세로 배치 그대로 */
 @supports (grid-template-rows: subgrid) {
   .cards { row-gap: 0; }
   .card { display: grid; grid-row: span 2; grid-template-rows: subgrid; row-gap: 0; margin-bottom: var(--sp-4); }
-  .card__media { display: flex; flex-direction: column; background: var(--media); }
-  .card__media > .lenses { flex: 1 1 auto; align-items: center; } /* IP·시각은 칸 맨 위, 렌즈는 가운데 */
+  .card__open > .lenses { flex: 1 1 auto; align-items: center; } /* IP·시각은 칸 맨 위, 렌즈는 가운데 */
   .card > .card__foot { margin-top: 0; } /* 한 줄의 칸 칩을 같은 높이에서 시작 (아래 .card__foot 의 auto 보다 우선) */
 }
-.card__foot { display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-2) var(--sp-1-5) var(--sp-2-5) var(--sp-3); margin-top: auto; }
-.card__row { display: flex; align-items: flex-start; gap: var(--sp-2); }
-.card__chips { flex: 1 1 0; min-width: 0; padding-top: var(--sp-1); }
-.card__edit { flex: none; }
+.card__foot { display: flex; flex-direction: column; gap: var(--sp-1-5); padding: var(--sp-2-5) var(--sp-3); margin-top: auto; }
 .card__meta { display: flex; flex-wrap: wrap; column-gap: var(--sp-1-5); font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--muted); }
 .card__meta > span { white-space: nowrap; }
 .card__meta--wrap > span { white-space: normal; }
-/* 좁은 카드(렌즈 1개, 작은 칸)에서는 '선 편집' 글자를 빼고 아이콘만.
-   기준은 카드 아래 칸의 폭 (카드 자체를 container 로 두면 subgrid 가 풀려 줄 높이가 안 맞는다) */
-.card__foot { container-type: inline-size; }
-@container (max-width: 279px) {
-  .card__edit { width: var(--control-h); padding: 0; }
-  .card__edit-label { display: none; }
-}
+/* 카드의 칸 칩: 칸 12개가 렌즈 1개 카드에서도 두세 줄에 들어가게 작게 */
+.chips--sm { gap: var(--sp-1); }
+.chips--sm .chip { min-width: 28px; height: 24px; padding: 0 var(--sp-1); font-size: var(--fs-meta); }
 .empty { padding: calc(var(--sp-5) * 4) 0; text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); }
 
 /* 영상 + 선 */

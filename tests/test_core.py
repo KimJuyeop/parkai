@@ -435,7 +435,7 @@ def test_cycle_log_summarizes_and_reports_camera_changes(caplog):
     from parkai.core.logutil import CycleLog
 
     now = [0.0]
-    cl = CycleLog(logging.getLogger("c"), every=600, clock=lambda: now[0])
+    cl = CycleLog(logging.getLogger("c"), every=600, clock=lambda: now[0], rss=lambda: 180.4)
     with caplog.at_level(logging.INFO, logger="c"):
         for i in range(241):  # 5초마다 20분
             bad = ["1.2.3.4(no_response)"] if 100 <= i < 110 else []
@@ -447,6 +447,7 @@ def test_cycle_log_summarizes_and_reports_camera_changes(caplog):
     assert sum("이상 카메라 없음" in m for m in msgs) == 1
     summaries = [m for m in msgs if m.startswith("최근")]
     assert len(summaries) == 2 and "주기 넘김 1회" in summaries[0]
+    assert summaries[0].endswith("메모리 180MB")  # 밤새 메모리가 늘어나는지 로그로 본다
     assert len(msgs) == 5
 
 

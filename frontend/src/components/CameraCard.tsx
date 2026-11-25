@@ -22,33 +22,34 @@ export function CameraCard({ cam, span = 1, onOpen, onEdit }: {
 
   return (
     <article className={`card${view.offline ? " card--offline" : ""}`} style={span > 1 ? { gridColumn: `span ${span}` } : undefined}>
-      <button type="button" className="card__media" onClick={onOpen} aria-label={`${cam.ip} 크게 보기`} title="크게 보기">
-        <CameraLenses
-          cam={cam} urls={img.urls} bbox={view.bbox} views={view.views} states={view.states}
-          errorMessage={img.unsavedError ?? "카메라 연결 안 됨"} loadedMessage={view.offline ? "만공등은 마지막 상태 유지" : null}
-          dimMessage colorMode="state" label={`${cam.ip} 영상`}
-          overlay={
-            <div className="media__top">
-              <span className="media__ip">{cam.ip}</span>
-              <span className="spacer" />
-              {view.offline && <span className="badge badge--solid-bad">응답 없음</span>}
-              <span className="media__time">{cs?.updated_at ? ago(cs.updated_at, status.now) : ""}</span>
-            </div>
-          }
-        />
-      </button>
+      <div className="card__media">
+        <button type="button" className="card__open" onClick={onOpen} aria-label={`${cam.ip} 크게 보기`} title="크게 보기">
+          <CameraLenses
+            cam={cam} urls={img.urls} bbox={view.bbox} views={view.views} states={view.states}
+            errorMessage={img.unsavedError ?? "카메라 연결 안 됨"} loadedMessage={view.offline ? "만공등은 마지막 상태 유지" : null}
+            dimMessage colorMode="state" compact label={`${cam.ip} 영상`}
+            overlay={
+              <div className="media__top">
+                <span className="media__ip">{cam.ip}</span>
+                <span className="spacer" />
+                {view.offline && <span className="badge badge--solid-bad">응답 없음</span>}
+                <span className="media__time">{cs?.updated_at ? ago(cs.updated_at, status.now) : ""}</span>
+              </div>
+            }
+          />
+        </button>
+        {/* 칸 칩이 카드 폭을 다 쓰게 영상 위에 둔다 (칸 12개 카메라도 칩이 두세 줄로 끝나게) */}
+        <button type="button" className="card__edit" onClick={onEdit} aria-label={`${cam.ip} 선 편집`} title="선 편집">
+          <Icon name="line" size={14} /><span className="card__edit-label">선 편집</span>
+        </button>
+      </div>
       <div className="card__foot">
-        <div className="card__row">
-          <div className="chips card__chips">
-            {cam.slots.length === 0 && <span className="meta">설정된 칸 없음</span>}
-            {cam.slots.map((s) => {
-              const st = view.states(s.no);
-              return <SlotChip key={s.no} no={s.no} state={st} type={s.type} title={`${s.no}번 · ${slotType(s.type).name} · ${stateLabel(st)}`} />;
-            })}
-          </div>
-          <button type="button" className="btn btn--ghost card__edit" onClick={onEdit} aria-label={`${cam.ip} 선 편집`} title="선 편집">
-            <Icon name="line" size={14} /><span className="card__edit-label">선 편집</span>
-          </button>
+        <div className="chips chips--sm">
+          {cam.slots.length === 0 && <span className="meta">설정된 칸 없음</span>}
+          {cam.slots.map((s) => {
+            const st = view.states(s.no);
+            return <SlotChip key={s.no} no={s.no} state={st} type={s.type} title={`${s.no}번 · ${slotType(s.type).name} · ${stateLabel(st)}`} />;
+          })}
         </div>
         <div className={`card__meta${view.offline ? " card__meta--wrap" : ""}`}>
           {meta.map((m, i) => <span key={i}>{m}{i < meta.length - 1 && " ·"}</span>)}

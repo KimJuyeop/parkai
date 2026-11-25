@@ -39,6 +39,8 @@ export interface MediaProps {
   overlay?: ReactNode;
   /** 렌즈가 여러 개일 때 영상 구석에 붙는 이름 */
   lensTag?: string | null;
+  /** 작은 영상 (모니터링 카드): 칸 번호를 작게 그리고, 서로 겹칠 만큼 빽빽하면 번호는 빼고 선만 (번호는 칸 칩에) */
+  compact?: boolean;
   label: string;
 }
 
@@ -54,7 +56,7 @@ function lineColor(mode: ColorMode, slot: Slot, st: SlotState): string {
  * 설정 좌표는 렌즈 사진 대비 비율이고, 안에서는 사진 픽셀로 바꿔 그린다 (가로세로 비율이 그대로 보이게).
  */
 export function CameraMedia(props: MediaProps) {
-  const { size, bbox, lens, slots, states, imageSrc, message, dimMessage, colorMode, selectedNo, onSelect, edit, dets, views, overlay, lensTag, label } = props;
+  const { size, bbox, lens, slots, states, imageSrc, message, dimMessage, colorMode, selectedNo, onSelect, edit, dets, views, overlay, lensTag, compact, label } = props;
   const [W, H] = size;
   const [x0, y0, bw, bh] = [bbox[0] * W, bbox[1] * H, bbox[2] * W, bbox[3] * H];
   const P = (p: Point): Point => [p[0] * W, p[1] * H];
@@ -129,6 +131,15 @@ export function CameraMedia(props: MediaProps) {
   };
 
   const u = px; // 화면 px → 사진 픽셀
+  // 칸 번호 상자 (화면 px). 선 가운데에서 오른쪽으로 off 만큼
+  const tag = compact ? { font: 11, h: 15, ch: 7, pad: 6, off: 12 } : { font: 12, h: 18, ch: 8, pad: 10, off: 22 };
+  const tagAt = (s: Slot) => {
+    const [[ax, ay], [bx, by]] = [P(s.line[0]), P(s.line[1])];
+    return { x: (ax + bx) / 2 + tag.off * u, y: (ay + by) / 2, w: (String(s.no).length * tag.ch + tag.pad) * u };
+  };
+  const tags = slots.map(tagAt);
+  const crowded = !!compact && tags.some((a, i) => tags.some((b, j) => j > i
+    && Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < tag.h * u));
   // 받은 원본 전체 중 분석 영역만 보이게 (서버에서 다시 자르지 않는다)
   const imgBox = { width: `${100 / bbox[2]}%`, height: `${100 / bbox[3]}%`, left: `${(-bbox[0] / bbox[2]) * 100}%`, top: `${(-bbox[1] / bbox[3]) * 100}%` };
   return (
@@ -153,8 +164,8 @@ export function CameraMedia(props: MediaProps) {
           const [[ax, ay], [bx, by]] = [P(s.line[0]), P(s.line[1])];
           const w = (sel ? 6 : edit ? 4.5 : st == null ? 2.5 : 4) * u;
           const dash = colorMode === "state" && st === false ? FREE_DASH.split(" ").map((n) => Number(n) * u).join(" ") : undefined;
-          const mx = (ax + bx) / 2 + 22 * u, my = (ay + by) / 2;
-          const tw = (String(s.no).length * 8 + 10) * u, th = 18 * u;
+          const { x: mx, y: my, w: tw } = tagAt(s);
+          const th = tag.h * u;
           return (
             <g key={s.no}>
               {sel && <line x1={ax} y1={ay} x2={bx} y2={by} stroke="var(--media-fg)" strokeWidth={w + 5 * u} strokeLinecap="round" />}
@@ -163,12 +174,14 @@ export function CameraMedia(props: MediaProps) {
                 <line x1={ax} y1={ay} x2={bx} y2={by} stroke="transparent" strokeWidth={16 * u}
                   style={{ cursor: "pointer" }} onPointerDown={(e) => { if (!edit?.adding) { e.stopPropagation(); onSelect(s.no); } }} />
               )}
-              <g style={{ cursor: onSelect ? "pointer" : "default" }}
-                onPointerDown={(e) => { if (onSelect && !edit?.adding) { e.stopPropagation(); onSelect(s.no); } }}>
-                <rect x={mx - tw / 2} y={my - th / 2} width={tw} height={th} rx={4 * u}
-                  fill="var(--media-tag)" stroke={sel ? "var(--media-fg)" : "none"} strokeWidth={u} />
-                <text className="slot-tag" x={mx} y={my} fontSize={12 * u} textAnchor="middle" dominantBaseline="central">{s.no}</text>
-              </g>
+              {!crowded && (
+                <g style={{ cursor: onSelect ? "pointer" : "default" }}
+                  onPointerDown={(e) => { if (onSelect && !edit?.adding) { e.stopPropagation(); onSelect(s.no); } }}>
+                  <rect x={mx - tw / 2} y={my - th / 2} width={tw} height={th} rx={4 * u}
+                    fill="var(--media-tag)" stroke={sel ? "var(--media-fg)" : "none"} strokeWidth={u} />
+                  <text className="slot-tag" x={mx} y={my} fontSize={tag.font * u} textAnchor="middle" dominantBaseline="central">{s.no}</text>
+                </g>
+              )}
               {edit && !edit.adding && ([0, 1] as const).map((end) => (
                 <circle key={end} cx={s.line[end][0] * W} cy={s.line[end][1] * H} r={6 * u} fill="var(--media-fg)" stroke={color} strokeWidth={2.5 * u}
                   style={{ cursor: "grab" }} onPointerDown={grab(s.no, end)} />
