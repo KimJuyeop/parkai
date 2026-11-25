@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Camera, SlotTypeId } from "../api/types";
 import { Icon } from "../components/Icon";
 import { LineEditor } from "../components/LineEditor";
-import { Check, CloseButton, Dialog, Field, TextInput, TypePicker } from "../components/ui";
+import { Check, CloseButton, Dialog, Field, PasswordInput, TextInput, TypePicker } from "../components/ui";
 import { useCameraView, useSlotEditing } from "../components/useCamera";
 import { api } from "../api/client";
 import { cameraDown, fmtPoint, FULL_LAMP, handledHere, INDICATOR_COLORS, ipRange, lastingError, lensName, slotType, stateLabel, stateTextClass } from "../lib/domain";
@@ -69,7 +69,7 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
               <h1 className="title mono strong">{cam.ip}</h1>
               {view.offline && <span className="badge badge--bad">응답 없음</span>}
               {!cam.enabled && <span className="badge badge--off">사용 안 함</span>}
-              <span className="meta">{cam.profile} · 렌즈 {view.lenses}개 · 분석 영역 {view.views.length}개</span>
+              <span className="meta">{cam.profile} · 렌즈 {view.lenses}개{view.views.length > 1 ? ` · 분석 영역 ${view.views.length}개` : ""}</span>
             </div>
             {camError && <p className="meta text-bad pre-line">카메라에서 영상을 받지 못했습니다: {camError}</p>}
 
@@ -146,7 +146,7 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
               {cam.own_account && (
                 <div className="form-grid form-grid--2">
                   <Field label="사용자"><TextInput value={cam.user} onCommit={(v) => setCam((c) => { c.user = v; }, "사용자 변경")} /></Field>
-                  <Field label="비밀번호"><TextInput type="password" value={cam.password} onCommit={(v) => setCam((c) => { c.password = v; }, "비밀번호 변경")} /></Field>
+                  <Field label="비밀번호"><PasswordInput value={cam.password} onCommit={(v) => setCam((c) => { c.password = v; }, v ? "비밀번호 변경" : "비밀번호 지움")} /></Field>
                 </div>
               )}
               <LedTest ip={cam.ip} />

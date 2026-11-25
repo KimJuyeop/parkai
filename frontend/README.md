@@ -23,10 +23,10 @@ src/
                     설정 좌표는 렌즈 사진 대비 비율, 그릴 때 사진 픽셀로 환산
     LineEditor      도구 줄 + CameraLenses — 모니터링 큰 창과 카메라 설정이 같이 씀
     useCamera       영상 주소(최신 이미지/스냅샷), 칸 편집 동작 (useSlotEditing)
-    CameraCard      모니터링 카드
+    CameraCard      모니터링 카드 (렌즈 수만큼 칸을 씀, 칸 수는 MonitorPage 의 useCardCols)
     CameraDialog    모니터링 큰 창 (보기 ↔ 선 편집)
     StatusStrip     상태 줄: 판정 · CCTV · 사이클 · CPU · 메모리 · 서버 전송 (모델명은 보이지 않고 모델 오류만)
-    AppHeader, ui   맨 위 줄, Field/TextInput/Check/SlotChip/TypePicker/Dialog …
+    AppHeader, ui   맨 위 줄, Field/TextInput/PasswordInput/Check/SlotChip/TypePicker/Dialog …
   settings/    sections.tsx — 기본 정보·서버 전송·판정(차량 인식 기준)·만공등 색·기록 이미지·카메라 프로필·점검(검출 모델)·설정 파일
                (시스템 설정 화면과 모니터링 빠른 설정 패널이 같이 씀)
   pages/       MonitorPage, CameraPage, SettingsPage

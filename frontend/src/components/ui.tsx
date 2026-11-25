@@ -1,5 +1,5 @@
 import { useEffect, useId, type CSSProperties, type ReactNode } from "react";
-import { SLOT_TYPES, type SlotState } from "../lib/domain";
+import { MASK, SLOT_TYPES, type SlotState } from "../lib/domain";
 import type { SlotTypeId } from "../api/types";
 import { Icon } from "./Icon";
 
@@ -21,6 +21,27 @@ export function TextInput({ value, onCommit, mono, type = "text", placeholder, s
       defaultValue={value} key={String(value)}
       onBlur={(e) => e.target.value !== String(value) && onCommit(e.target.value)}
       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+  );
+}
+
+/**
+ * 비밀번호 입력. 저장된 비밀번호는 화면에 오지 않으므로(MASK) 점 네 개 대신 빈칸에 '저장됨' 으로 보이고,
+ * 입력했을 때만 바뀐다. 빈칸으로 두면 그대로, 지우려면 '지우기'.
+ */
+export function PasswordInput({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+  const saved = value === MASK;
+  return (
+    <span className="row gap-1-5">
+      <input className="input" type="password" autoComplete="new-password" key={value}
+        defaultValue={saved ? "" : value}
+        placeholder={saved ? "저장됨 · 바꿀 때만 입력" : "없음"}
+        onBlur={(e) => {
+          const v = e.target.value;
+          if (v ? v !== value : value && !saved) onCommit(v);
+        }}
+        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+      {value && <button type="button" className="btn btn--ghost" onClick={() => onCommit("")}>지우기</button>}
+    </span>
   );
 }
 

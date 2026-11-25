@@ -57,7 +57,7 @@ export function LineEditor({ cam, editing, allowStateColor = true }: {
         cam={cam} urls={img.urls} bbox={view.bbox} views={view.views} states={view.states}
         firstMessage={first} errorMessage={img.unsavedError ?? "영상을 불러오지 못했습니다"} loadingMessage="영상을 불러오는 중…"
         colorMode={mode} selectedNo={editing.selected} onSelect={editing.setSelected}
-        edit={editing.handlers} label={`${cam.ip} 스냅샷과 칸 선분`}
+        edit={editing.handlers} fit label={`${cam.ip} 스냅샷과 칸 선분`}
       />
       <div className="editor-hint">
         선 추가 → {view.lenses > 1 ? "선을 그을 렌즈 영상에서 " : ""}두 점 클릭을 반복해 여러 칸을 이어서 추가 (번호는 비어 있는 작은 번호부터) · 흰 점을 끌어 위치 수정 · 선이나 번호를 눌러 선택 후 옆에서 종류 변경 · Delete 로 삭제 · 최대 {MAX_SLOTS}칸 (현재 {cam.slots.length}칸)

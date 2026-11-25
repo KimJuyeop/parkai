@@ -7,7 +7,9 @@ import { SlotChip } from "./ui";
 import { useCameraImages, useCameraView } from "./useCamera";
 
 /** 모니터링 카드: 영상(누르면 크게 보기) · 칸 칩 · 처리 시간 · 선 편집 */
-export function CameraCard({ cam, onOpen, onEdit }: { cam: Camera; onOpen: () => void; onEdit: () => void }) {
+export function CameraCard({ cam, span = 1, onOpen, onEdit }: {
+  cam: Camera; /** 카드가 차지할 칸 수 (렌즈 수) */ span?: number; onOpen: () => void; onEdit: () => void;
+}) {
   const { status } = useCfg();
   const view = useCameraView(cam)!;
   const img = useCameraImages(cam);
@@ -18,7 +20,7 @@ export function CameraCard({ cam, onOpen, onEdit }: { cam: Camera; onOpen: () =>
     : cs ? `수신 ${ms(t.fetch)} · 추론 ${ms(t.infer)} · 차량 ${cs.boxes ?? "-"}대` : "판정 결과 없음 · 스냅샷 표시";
 
   return (
-    <article className={`card${view.offline ? " card--offline" : ""}`}>
+    <article className={`card${view.offline ? " card--offline" : ""}`} style={span > 1 ? { gridColumn: `span ${span}` } : undefined}>
       <button type="button" className="card__media" onClick={onOpen} aria-label={`${cam.ip} 크게 보기`} title="크게 보기">
         <CameraLenses
           cam={cam} urls={img.urls} bbox={view.bbox} views={view.views} states={view.states}

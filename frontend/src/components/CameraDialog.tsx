@@ -53,7 +53,7 @@ export function CameraDialog({ ip, startEditing, onClose }: { ip: string; startE
           cam={cam} urls={img.urls} bbox={view.bbox} views={view.views} states={view.states}
           errorMessage={img.unsavedError ?? "카메라 연결 안 됨"}
           colorMode="state" selectedNo={selNo} onSelect={editing.setSelected}
-          dets={showDets ? view.cs?.dets : undefined} label={`${ip} 영상과 칸 선분`}
+          dets={showDets ? view.cs?.dets : undefined} fit label={`${ip} 영상과 칸 선분`}
         />
       )}
 

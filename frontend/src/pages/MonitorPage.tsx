@@ -1,13 +1,39 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CameraCard } from "../components/CameraCard";
 import { CameraDialog } from "../components/CameraDialog";
 import { Icon } from "../components/Icon";
 import { StatusStrip } from "../components/StatusStrip";
-import { handledHere, slotState } from "../lib/domain";
+import { handledHere, lensCount, slotState } from "../lib/domain";
 import { BasicFields, JudgeFields, LampFields, ServerFields } from "../settings/sections";
 import { useCfg } from "../state/AppState";
 
 type Filter = "all" | "free" | "full";
+
+/** 카드 한 칸(렌즈 한 장)의 최소 폭과 카드 사이 간격 (px, --sp-4) */
+const CELL_MIN = 320;
+const CELL_GAP = 16;
+
+/**
+ * 카드 칸 수. 렌즈가 여러 개인 카메라는 렌즈 수만큼 칸을 써서 모든 렌즈가 같은 크기로 보이게 한다.
+ * 칸 수가 홀수면 두 칸짜리 카드가 줄 끝에 못 들어가 빈자리가 자주 생겨 짝수로 맞춘다 (순서는 IP 순 그대로).
+ */
+function useCardCols(anyWide: boolean) {
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+  const ref = useCallback((node: HTMLDivElement | null) => {
+    setEl(node);
+    if (node) setWidth(node.clientWidth);
+  }, []);
+  useEffect(() => {
+    if (!el) return;
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el]);
+  let cols = Math.max(1, Math.floor((width + CELL_GAP) / (CELL_MIN + CELL_GAP)));
+  if (anyWide && cols > 2 && cols % 2) cols -= 1;
+  return { ref, cols };
+}
 
 export function MonitorPage({ panelOpen, setPanelOpen, onGoSettings, onGoCamera }: {
   panelOpen: boolean; setPanelOpen: (v: boolean) => void; onGoSettings: () => void; onGoCamera: () => void;
@@ -29,6 +55,7 @@ export function MonitorPage({ panelOpen, setPanelOpen, onGoSettings, onGoCamera 
     { id: "full", name: "만차", count: info.filter((x) => x.full).length },
   ];
   const shown = info.filter((x) => filter === "all" || (filter === "free" ? x.free : x.full));
+  const grid = useCardCols(shown.some((x) => lensCount(cfg, x.cam) > 1));
 
   return (
     <div className="monitor">
@@ -68,9 +95,9 @@ export function MonitorPage({ panelOpen, setPanelOpen, onGoSettings, onGoCamera 
           ) : shown.length === 0 ? (
             <div className="empty">조건에 맞는 카메라가 없습니다.</div>
           ) : (
-            <div className="cards">
+            <div className="cards" ref={grid.ref} style={{ gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))` }}>
               {shown.map(({ cam }) => (
-                <CameraCard key={cam.ip} cam={cam} onOpen={() => setDialog({ ip: cam.ip, edit: false })} onEdit={() => setDialog({ ip: cam.ip, edit: true })} />
+                <CameraCard key={cam.ip} cam={cam} span={Math.min(lensCount(cfg, cam), grid.cols)} onOpen={() => setDialog({ ip: cam.ip, edit: false })} onEdit={() => setDialog({ ip: cam.ip, edit: true })} />
               ))}
             </div>
           )}

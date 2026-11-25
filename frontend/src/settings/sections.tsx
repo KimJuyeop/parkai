@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { api } from "../api/client";
 import type { AppConfig, CameraProfile, ModelInfo, ServerTestResult } from "../api/types";
-import { FULL_LAMP, INDICATOR_COLORS, JUDGE_RULE } from "../lib/domain";
+import { FULL_LAMP, INDICATOR_COLORS, JUDGE_RULE, MASK } from "../lib/domain";
 import { useCfg } from "../state/AppState";
-import { Check, Field, TextInput } from "../components/ui";
+import { Check, Field, PasswordInput, TextInput } from "../components/ui";
 import { Icon } from "../components/Icon";
 
 // 시스템 설정 화면과 모니터링 빠른 설정 패널이 같이 쓰는 설정 묶음. compact 는 패널용(한 줄씩).
@@ -249,9 +249,9 @@ export function ProfilesFields() {
     edit((d) => {
       d.camera_profiles = Object.fromEntries(Object.entries(d.camera_profiles).map(([k, v]) => [k === from ? n : k, v]));
       for (const c of d.cameras) if (c.profile === from) c.profile = n;
-      if (d.camera_profiles[n].password === "****") d.camera_profiles[n].password = "";
+      if (d.camera_profiles[n].password === MASK) d.camera_profiles[n].password = "";
     }, `프로필 이름 → ${n}`);
-    if (cfg.camera_profiles[from].password === "****") toast("이름을 바꿨으니 공통 비밀번호를 다시 입력하세요", 4000);
+    if (cfg.camera_profiles[from].password === MASK) toast("이름을 바꿨으니 공통 비밀번호를 다시 입력하세요", 4000);
   };
   const setP = (name: string, fn: (p: CameraProfile) => void, note: string) =>
     edit((d) => { fn(d.camera_profiles[name]); }, note);
@@ -272,14 +272,12 @@ export function ProfilesFields() {
             <div className="profile__body">
               <div className="form-grid form-grid--2 profile__fields">
                 <Field label="이름"><TextInput value={name} onCommit={(v) => rename(name, v)} /></Field>
-                <Field label="인증">
-                  <select className="select" value={p.auth} onChange={(e) => setP(name, (x) => { x.auth = e.target.value as CameraProfile["auth"]; }, "인증 방식 변경")}>
-                    <option value="digest">다이제스트 (Digest)</option>
-                    <option value="basic">기본 (Basic)</option>
-                    <option value="none">인증 없음</option>
+                <Field label="렌즈 수 · 렌즈마다 사진을 따로 받음">
+                  <select className="select" value={p.lenses} onChange={(e) => setP(name, (x) => { x.lenses = Number(e.target.value); }, "렌즈 수 변경")}>
+                    {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}개</option>)}
                   </select>
                 </Field>
-                <Field label="스냅샷 주소 · {ip}, {port}에 카메라 값, {channel}에 렌즈 번호(1부터)가 들어감" className="span-2">
+                <Field label="스냅샷 주소 · {ip}, {port}에 카메라 값, {channel}에 렌즈 번호(1부터, 0부터는 {channel0})가 들어감" className="span-2">
                   <TextInput mono value={p.snapshot_url} onCommit={(v) => setP(name, (x) => { x.snapshot_url = v.trim(); }, "스냅샷 주소 변경")} />
                 </Field>
                 <Field label="만공등 주소 · {ip}, {port}, {controller_ip}(카메라의 컨트롤러 IP), {color}(색 이름), {color_hex}(0xRRGGBB), {rgb}(RRGGBB)" className="span-2">
@@ -289,24 +287,17 @@ export function ProfilesFields() {
                     <button type="button" className="btn btn--ghost" onClick={() => setP(name, (x) => { x.led_url = IDIS_LED_URL("external"); }, "만공등 주소: IDIS 외부 등")}>IDIS 외부 등</button>
                   </span>
                 </Field>
-                <Field label="공통 사용자"><TextInput value={p.user} onCommit={(v) => setP(name, (x) => { x.user = v; }, "공통 사용자 변경")} /></Field>
-                <Field label="공통 비밀번호"><TextInput type="password" value={p.password} onCommit={(v) => setP(name, (x) => { x.password = v; }, "공통 비밀번호 변경")} /></Field>
-                <Field label="렌즈 수">
-                  <select className="select" value={p.lenses} onChange={(e) => setP(name, (x) => { x.lenses = Number(e.target.value); }, "렌즈 수 변경")}>
-                    {[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}개</option>)}
+                <Field label="인증">
+                  <select className="select" value={p.auth} onChange={(e) => setP(name, (x) => { x.auth = e.target.value as CameraProfile["auth"]; }, "인증 방식 변경")}>
+                    <option value="digest">다이제스트 (Digest)</option>
+                    <option value="basic">기본 (Basic)</option>
+                    <option value="none">인증 없음</option>
                   </select>
                 </Field>
-                <Field label="분석 영역 (렌즈 사진 대비 %: x,y,가로,세로; …)">
-                  <TextInput mono value={p.views.map((v) => v.map(pct).join(",")).join("; ")} onCommit={(v) => {
-                    const views = v.split(";").map((s) => s.trim()).filter(Boolean).map((s) => s.split(",").map((n) => Number(n) / 100));
-                    const bad = !views.length || views.some((x) => x.length !== 4 || x.some(Number.isNaN)
-                      || x[0] < 0 || x[1] < 0 || x[2] <= 0 || x[3] <= 0 || x[0] + x[2] > 1.0001 || x[1] + x[3] > 1.0001);
-                    if (bad) return toast("예: 0,0,100,100 (전체) · 0,0,50,50; 50,0,50,50 (위 절반 두 화면)");
-                    setP(name, (x) => { x.views = views as CameraProfile["views"]; }, "분석 영역 변경");
-                  }} />
-                </Field>
+                <Field label="공통 사용자"><TextInput value={p.user} onCommit={(v) => setP(name, (x) => { x.user = v; }, "공통 사용자 변경")} /></Field>
+                <Field label="공통 비밀번호"><PasswordInput value={p.password} onCommit={(v) => setP(name, (x) => { x.password = v; }, v ? "공통 비밀번호 변경" : "공통 비밀번호 지움")} /></Field>
+                <ViewsFields profile={p} onChange={(views) => setP(name, (x) => { x.views = views; }, "분석 영역 변경")} />
               </div>
-              <ViewsPreview profile={p} />
             </div>
           </div>
         );
@@ -321,6 +312,40 @@ export function ProfilesFields() {
         }}><Icon name="plus" size={14} />프로필 추가</button>
       </div>
     </>
+  );
+}
+
+const isFullView = (views: CameraProfile["views"]) =>
+  views.length === 1 && views[0].every((v, i) => Math.abs(v - [0, 0, 1, 1][i]) < 1e-6);
+
+/**
+ * 분석 영역: 보통은 렌즈 사진 전체라 접어 둔다. 한 사진에 화면이 여러 개 들어오는 카메라
+ * (2분할 출력, 어안 카메라의 여러 화면 보기 등)만 나눈다. 나눠 둔 프로필은 펼쳐서 보인다.
+ */
+function ViewsFields({ profile, onChange }: { profile: CameraProfile; onChange: (views: CameraProfile["views"]) => void }) {
+  const { toast } = useCfg();
+  const full = isFullView(profile.views);
+  return (
+    <details className="more span-2" open={!full}>
+      <summary className="more__head">
+        분석 영역 <span className="meta">· {full ? "렌즈 사진 전체" : `렌즈마다 ${profile.views.length}개로 나눔`}</span>
+      </summary>
+      <div className="more__body">
+        <span className="meta">한 사진에 화면이 여러 개 들어오는 카메라(2분할 출력, 어안 카메라의 여러 화면 보기 등)만 나눕니다. 나눈 영역은 따로 판정합니다.</span>
+        <div className="more__row">
+          <Field label="렌즈 사진 대비 % (x,y,가로,세로; …)" className="more__field">
+            <TextInput mono value={profile.views.map((v) => v.map(pct).join(",")).join("; ")} onCommit={(v) => {
+              const views = v.split(";").map((s) => s.trim()).filter(Boolean).map((s) => s.split(",").map((n) => Number(n) / 100));
+              const bad = !views.length || views.some((x) => x.length !== 4 || x.some(Number.isNaN)
+                || x[0] < 0 || x[1] < 0 || x[2] <= 0 || x[3] <= 0 || x[0] + x[2] > 1.0001 || x[1] + x[3] > 1.0001);
+              if (bad) return toast("예: 0,0,100,100 (전체) · 0,0,50,50; 50,0,50,50 (위 절반 두 화면)");
+              onChange(views as CameraProfile["views"]);
+            }} />
+          </Field>
+          <ViewsPreview profile={profile} />
+        </div>
+      </div>
+    </details>
   );
 }
 

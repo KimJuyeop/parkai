@@ -69,6 +69,14 @@
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column; }
 .card--offline { border-color: var(--bad); }
 .card__media { display: block; width: 100%; padding: 0; border: none; background: none; cursor: zoom-in; }
+/* 한 줄의 카드끼리 영상·칸·아래 줄 높이를 맞춘다 (subgrid). 가로로 긴 렌즈(2036x880 등)는 위아래가 어둡게 남는다.
+   subgrid 를 모르는 브라우저는 위의 세로 배치 그대로 */
+@supports (grid-template-rows: subgrid) {
+  .cards { row-gap: 0; }
+  .card { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; margin-bottom: var(--sp-4); }
+  .card__media { display: flex; flex-direction: column; background: var(--media); }
+  .card__media > .lenses { flex: 1 1 auto; align-items: center; } /* IP·시각은 칸 맨 위, 렌즈는 가운데 */
+}
 .card__chips { padding: var(--sp-3) var(--sp-3) 0; }
 .card__foot { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-1-5) var(--sp-2) var(--sp-3); margin-top: auto; }
 .card__meta { flex: 1 1 0; font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -89,6 +97,9 @@
 /* 렌즈 여러 개를 나란히 (모니터링 카드, 큰 창, 선 편집기) */
 .lenses { position: relative; display: flex; align-items: flex-start; gap: var(--sp-half); background: var(--media); }
 .lenses > .media { flex: 1 1 0; min-width: 0; }
+/* 큰 창·선 편집기: 렌즈 높이를 화면에 맞추고 가운데. 렌즈 1개짜리가 화면을 넘지 않게 (--ar = 가로/세로) */
+.lenses--fit { justify-content: center; --lens-max-h: max(240px, calc(100vh - 400px)); }
+.lenses--fit > .media { max-width: calc(var(--lens-max-h) * var(--ar)); }
 .slot-tag { font-family: var(--font-mono); font-weight: 600; fill: var(--media-fg); }
 
 /* 선 편집기 바 */
@@ -154,7 +165,14 @@
 .profile__body { display: flex; flex-wrap: wrap; gap: var(--sp-5); padding: var(--sp-4); }
 .profile__fields { flex: 999 1 360px; min-width: 0; }
 .input--name { max-width: 240px; }
-.views-preview { flex: 1 1 200px; }
+.views-preview { flex: 1 1 200px; max-width: 260px; }
+/* 접어 두는 설정 (분석 영역 등) */
+.more { border-top: 1px solid var(--line); padding-top: var(--sp-3); }
+.more__head { cursor: pointer; font-size: var(--fs-body); font-weight: 600; }
+.more__head .meta { font-weight: 400; }
+.more__body { display: flex; flex-direction: column; gap: var(--sp-3); padding-top: var(--sp-3); }
+.more__row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-4); }
+.more__field { flex: 999 1 280px; min-width: 0; }
 .views-preview__svg { width: 100%; border-radius: var(--radius); background: var(--media); }
 
 /* 판정 방식 고르기 */

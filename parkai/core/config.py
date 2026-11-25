@@ -147,7 +147,7 @@ DEFAULT_LED_URL = LED_URL_IDIS % "internal"
 
 
 class CameraProfile(BaseModel):
-    snapshot_url: str  # {ip}, {port}, {channel}(렌즈 번호, 1부터) 치환
+    snapshot_url: str  # {ip}, {port}, {channel}(렌즈 번호, 1부터), {channel0}(0부터) 치환
     auth: Literal["none", "basic", "digest"] = "digest"
     user: str = ""  # 이 프로필을 쓰는 카메라 공통 계정
     password: str = ""

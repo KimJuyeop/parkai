@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent as RKeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as RKeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from "react";
 import type { Point, Rect, Slot } from "../api/types";
 import { slotType, type SlotState } from "../lib/domain";
 
@@ -132,7 +132,7 @@ export function CameraMedia(props: MediaProps) {
   // 받은 원본 전체 중 분석 영역만 보이게 (서버에서 다시 자르지 않는다)
   const imgBox = { width: `${100 / bbox[2]}%`, height: `${100 / bbox[3]}%`, left: `${(-bbox[0] / bbox[2]) * 100}%`, top: `${(-bbox[1] / bbox[3]) * 100}%` };
   return (
-    <div ref={wrap} className="media" style={{ aspectRatio: `${bw} / ${bh}` }}>
+    <div ref={wrap} className="media" style={{ aspectRatio: `${bw} / ${bh}`, "--ar": bw / bh } as CSSProperties}>
       {imageSrc && <img className="media__img" style={imgBox} src={imageSrc} alt="" draggable={false} />}
       <svg ref={svg} className="media__svg" viewBox={`${x0} ${y0} ${bw} ${bh}`} preserveAspectRatio="none"
         role="img" aria-label={label} tabIndex={edit ? 0 : undefined}

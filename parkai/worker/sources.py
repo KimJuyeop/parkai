@@ -23,13 +23,16 @@ class Unreachable(SourceError):
     (인증 실패·서버 오류·이미지가 아닌 응답은 카메라는 살아 있으므로 SourceError)"""
 
 
-URL_FIELDS = "{ip}, {ipaddress}, {port}, {channel}"
+URL_FIELDS = "{ip}, {ipaddress}, {port}, {channel}, {channel0}"
 
 
 def build_snapshot_url(template: str, cam: Camera, channel: int = 1) -> str:
-    """스냅샷 URL 템플릿 치환. {ip}와 {ipaddress}는 같은 값, {channel}은 렌즈 번호(1부터)."""
+    """스냅샷 URL 템플릿 치환. {ip}와 {ipaddress}는 같은 값, {channel}은 렌즈 번호(1부터),
+    {channel0}은 0부터 (채널을 0부터 세는 기종용)."""
     try:
-        return template.format(ip=cam.ip, ipaddress=cam.ip, port=cam.port, channel=channel)
+        return template.format(
+            ip=cam.ip, ipaddress=cam.ip, port=cam.port, channel=channel, channel0=channel - 1
+        )
     except (KeyError, IndexError, ValueError) as e:
         raise SourceError(f"스냅샷 URL 형식 오류 ({e}). 사용할 수 있는 값: {URL_FIELDS}") from e
 

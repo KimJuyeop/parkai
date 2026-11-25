@@ -25,6 +25,8 @@ interface Props extends Shared {
   firstMessage?: string | null;
   /** 렌즈 전체 위에 겹치는 것 (IP, 시각 등) */
   overlay?: ReactNode;
+  /** 화면 높이에 맞춘다 (큰 창, 선 편집기). 렌즈 1개짜리가 화면을 넘어 칸 목록이 밀려나지 않게 */
+  fit?: boolean;
   label: string;
 }
 
@@ -32,10 +34,10 @@ interface Props extends Shared {
  * 카메라 영상: 렌즈마다 사진을 따로 받아 나란히 보여 주고, 그 렌즈의 칸 선분과 박스를 그린다.
  * 모니터링 카드, 큰 창, 선 편집기가 같이 쓴다.
  */
-export function CameraLenses({ cam, urls, bbox, views, dets, loadedMessage, errorMessage, loadingMessage, firstMessage, overlay, label, ...shared }: Props) {
+export function CameraLenses({ cam, urls, bbox, views, dets, loadedMessage, errorMessage, loadingMessage, firstMessage, overlay, fit, label, ...shared }: Props) {
   const many = urls.length > 1;
   return (
-    <div className="lenses">
+    <div className={`lenses${fit ? " lenses--fit" : ""}`}>
       {urls.map((url, lens) => (
         <LensPane
           key={lens} lens={lens} url={url} bbox={bbox} views={views}

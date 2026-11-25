@@ -78,6 +78,8 @@ def test_snapshot_url_accepts_ipaddress():
     url = "http://{ipaddress}/cgi-bin/webSetup.cgi?action=videoStreamSnapshot&mode=1"
     assert build_snapshot_url(url, cam).startswith("http://192.168.0.5/cgi-bin")
     assert build_snapshot_url("http://{ip}:{port}/x", cam) == "http://192.168.0.5:8080/x"
+    # 렌즈 번호: {channel} 은 1부터, {channel0} 은 0부터
+    assert build_snapshot_url("x?c={channel}&z={channel0}", cam, 2) == "x?c=2&z=1"
 
 
 def test_profile_account_masked_and_used(tmp_path, monkeypatch):

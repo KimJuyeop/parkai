@@ -51,6 +51,9 @@ export function nextSlotNo(cam: Camera): number | null {
   return null;
 }
 
+/** 저장된 비밀번호 자리 표시. 서버는 비밀번호를 화면에 보내지 않고 이 값을 준다 (그대로 저장하면 기존 값 유지) */
+export const MASK = "****";
+
 /** 이 주기 수만큼 연달아 실패해야 화면에 '응답 없음'·실패 원인을 보인다 (한 번씩 튀는 실패는 로그에만) */
 export const DOWN_AFTER_CYCLES = 3;
 
