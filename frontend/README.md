@@ -23,7 +23,7 @@ src/
                     설정 좌표는 렌즈 사진 대비 비율, 그릴 때 사진 픽셀로 환산
     LineEditor      도구 줄 + CameraLenses — 모니터링 큰 창과 카메라 설정이 같이 씀
     useCamera       영상 주소(최신 이미지/스냅샷), 칸 편집 동작 (useSlotEditing)
-    CameraCard      모니터링 카드 (렌즈 수만큼 칸을 씀, 칸 수는 MonitorPage 의 useCardCols)
+    CameraCard      모니터링 카드 (렌즈 수만큼 칸을 씀, 칸 수는 MonitorPage 의 useCardCols: 렌즈 폭 200px 이상)
     CameraDialog    모니터링 큰 창 (보기 ↔ 선 편집)
     StatusStrip     상태 줄: 판정 · CCTV · 사이클 · CPU · 메모리 · 서버 전송 (모델명은 보이지 않고 모델 오류만)
     AppHeader, ui   맨 위 줄, Field/TextInput/PasswordInput/Check/SlotChip/TypePicker/Dialog …

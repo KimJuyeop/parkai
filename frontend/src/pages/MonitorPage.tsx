@@ -9,15 +9,15 @@ import { useCfg } from "../state/AppState";
 
 type Filter = "all" | "free" | "full";
 
-/** 카드 한 칸(렌즈 한 장)의 최소 폭과 카드 사이 간격 (px, --sp-4) */
-const CELL_MIN = 320;
+/** 카드 한 칸(렌즈 한 장)의 최소 폭과 카드 사이 간격 (px, --sp-4). 1920 화면에서 18대 중 약 11대가 한 화면에 */
+const CELL_MIN = 200;
 const CELL_GAP = 16;
 
 /**
  * 카드 칸 수. 렌즈가 여러 개인 카메라는 렌즈 수만큼 칸을 써서 모든 렌즈가 같은 크기로 보이게 한다.
- * 칸 수가 홀수면 두 칸짜리 카드가 줄 끝에 못 들어가 빈자리가 자주 생겨 짝수로 맞춘다 (순서는 IP 순 그대로).
+ * 두 칸짜리 카드가 줄 끝에 못 들어가면 그 자리는 비워 둔다 (순서는 IP 순 그대로).
  */
-function useCardCols(anyWide: boolean) {
+function useCardCols() {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
   const ref = useCallback((node: HTMLDivElement | null) => {
@@ -30,9 +30,7 @@ function useCardCols(anyWide: boolean) {
     ro.observe(el);
     return () => ro.disconnect();
   }, [el]);
-  let cols = Math.max(1, Math.floor((width + CELL_GAP) / (CELL_MIN + CELL_GAP)));
-  if (anyWide && cols > 2 && cols % 2) cols -= 1;
-  return { ref, cols };
+  return { ref, cols: Math.max(1, Math.floor((width + CELL_GAP) / (CELL_MIN + CELL_GAP))) };
 }
 
 export function MonitorPage({ panelOpen, setPanelOpen, onGoSettings, onGoCamera }: {
@@ -55,7 +53,7 @@ export function MonitorPage({ panelOpen, setPanelOpen, onGoSettings, onGoCamera 
     { id: "full", name: "만차", count: info.filter((x) => x.full).length },
   ];
   const shown = info.filter((x) => filter === "all" || (filter === "free" ? x.free : x.full));
-  const grid = useCardCols(shown.some((x) => lensCount(cfg, x.cam) > 1));
+  const grid = useCardCols();
 
   return (
     <div className="monitor">

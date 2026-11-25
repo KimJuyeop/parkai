@@ -15,9 +15,10 @@ export function CameraCard({ cam, span = 1, onOpen, onEdit }: {
   const img = useCameraImages(cam);
   const cs = view.cs;
   const t = cs?.timings ?? {};
+  // 좁은 카드에서는 항목 사이에서 줄을 바꾼다 (항목 안에서는 끊지 않음)
   const meta = view.offline
-    ? cs?.error ?? "카메라 응답 없음"
-    : cs ? `수신 ${ms(t.fetch)} · 추론 ${ms(t.infer)} · 차량 ${cs.boxes ?? "-"}대` : "판정 결과 없음 · 스냅샷 표시";
+    ? [cs?.error ?? "카메라 응답 없음"]
+    : cs ? [`수신 ${ms(t.fetch)}`, `추론 ${ms(t.infer)}`, `차량 ${cs.boxes ?? "-"}대`] : ["판정 결과 없음", "스냅샷 표시"];
 
   return (
     <article className={`card${view.offline ? " card--offline" : ""}`} style={span > 1 ? { gridColumn: `span ${span}` } : undefined}>
@@ -36,18 +37,22 @@ export function CameraCard({ cam, span = 1, onOpen, onEdit }: {
           }
         />
       </button>
-      <div className="card__chips chips">
-        {cam.slots.length === 0 && <span className="meta">설정된 칸 없음</span>}
-        {cam.slots.map((s) => {
-          const st = view.states(s.no);
-          return <SlotChip key={s.no} no={s.no} state={st} type={s.type} title={`${s.no}번 · ${slotType(s.type).name} · ${stateLabel(st)}`} />;
-        })}
-      </div>
       <div className="card__foot">
-        <span className="card__meta" title={meta}>{meta}</span>
-        <button type="button" className="btn btn--ghost" onClick={onEdit} aria-label={`${cam.ip} 선 편집`}>
-          <Icon name="line" size={14} />선 편집
-        </button>
+        <div className="card__row">
+          <div className="chips card__chips">
+            {cam.slots.length === 0 && <span className="meta">설정된 칸 없음</span>}
+            {cam.slots.map((s) => {
+              const st = view.states(s.no);
+              return <SlotChip key={s.no} no={s.no} state={st} type={s.type} title={`${s.no}번 · ${slotType(s.type).name} · ${stateLabel(st)}`} />;
+            })}
+          </div>
+          <button type="button" className="btn btn--ghost card__edit" onClick={onEdit} aria-label={`${cam.ip} 선 편집`} title="선 편집">
+            <Icon name="line" size={14} /><span className="card__edit-label">선 편집</span>
+          </button>
+        </div>
+        <div className={`card__meta${view.offline ? " card__meta--wrap" : ""}`}>
+          {meta.map((m, i) => <span key={i}>{m}{i < meta.length - 1 && " ·"}</span>)}
+        </div>
       </div>
     </article>
   );
