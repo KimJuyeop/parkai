@@ -5,7 +5,7 @@ import { LineEditor } from "../components/LineEditor";
 import { Check, CloseButton, Dialog, Field, TextInput, TypePicker } from "../components/ui";
 import { useCameraView, useSlotEditing } from "../components/useCamera";
 import { api } from "../api/client";
-import { FULL_LAMP, INDICATOR_COLORS, fmtPoint, handledHere, ipRange, lensName, slotType, stateLabel, stateTextClass } from "../lib/domain";
+import { cameraDown, fmtPoint, FULL_LAMP, handledHere, INDICATOR_COLORS, ipRange, lastingError, lensName, slotType, stateLabel, stateTextClass } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 
 export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string | null; setSelectedIp: (ip: string | null) => void }) {
@@ -17,8 +17,8 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
   const cam = cams.find((c) => c.ip === ip);
   const editing = useSlotEditing(ip ?? undefined);
   const view = useCameraView(cam);
-  // 카메라 설정 화면에서만 실패 원인을 보여준다 (모니터링은 정상/응답 없음만)
-  const camError = cam && alive ? status.cameras[cam.ip]?.error : null;
+  // 카메라 설정 화면에서만 실패 원인을 보여준다 (모니터링은 정상/응답 없음만). 몇 주기 이어질 때만
+  const camError = cam && alive ? lastingError(status.cameras[cam.ip]) : null;
   const list = cams.filter((c) => c.ip.includes(query.trim()));
 
   const { setSelected } = editing;
@@ -40,8 +40,8 @@ export function CameraPage({ selectedIp, setSelectedIp }: { selectedIp: string |
         <ul className="cam-list">
           {list.map((c) => {
             const here = handledHere(cfg, c);
-            const st = alive && here ? status.cameras[c.ip]?.status : undefined;
-            const dot = !here ? "" : st === "no_response" ? "dot--bad" : st ? "dot--ok" : "";
+            const cs = alive && here ? status.cameras[c.ip] : undefined;
+            const dot = !here ? "" : cameraDown(cs) ? "dot--bad" : cs?.status ? "dot--ok" : "";
             return (
               <li key={c.ip}>
                 <button type="button" className="cam-item" aria-current={c.ip === ip} onClick={() => setSelectedIp(c.ip)} data-other={!here || undefined}>

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { api } from "../api/client";
 import type { AppConfig, Camera, Point, Slot, SlotTypeId } from "../api/types";
-import { MAX_SLOTS, handledHere, lensCount, nextSlotNo, slotState, slotType, viewsBBox } from "../lib/domain";
+import { MAX_SLOTS, cameraDown, handledHere, lensCount, nextSlotNo, slotState, slotType, viewsBBox } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 import type { EditHandlers } from "./CameraMedia";
 
@@ -37,7 +37,7 @@ export function useCameraView(cam: Camera | undefined) {
       views,
       lenses: lensCount(cfg, cam),
       cs,
-      offline: cs?.status === "no_response",
+      offline: cameraDown(cs),
       states: (no: number) => slotState(cs, no),
     };
   }, [cfg, cam, alive, status]);

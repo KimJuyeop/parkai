@@ -41,6 +41,8 @@ export interface CameraProfile {
   lenses: number;
   /** 분석 영역 (모든 렌즈에 같게) */
   views: Rect[];
+  /** 만공등 제어 주소 (HTTP GET). {ip} {port} {controller_ip} {color} {color_hex} {rgb} 치환 */
+  led_url: string;
 }
 
 export interface SlotType {
@@ -74,8 +76,6 @@ export interface AppConfig {
   server: { enabled: boolean; base_url: string; path: string; timeout_sec: number };
   indicator: {
     enabled: boolean;
-    protocol: "idis";
-    led_type: "internal" | "external";
     resend_sec: number;
     priority: SlotTypeId[]; // 빈칸이 여러 종류일 때 먼저 켤 종류 순서
   };
@@ -113,6 +113,8 @@ export interface CameraStatus {
   boxes?: number;
   /** 검출 박스 [렌즈, x1, y1, x2, y2, score] (렌즈 사진 대비 비율) */
   dets?: Det[];
+  /** 연속으로 정상이 아닌 주기 수 */
+  fail_cycles?: number;
 }
 
 export type Det = [number, number, number, number, number, number];

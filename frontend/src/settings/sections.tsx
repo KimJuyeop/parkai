@@ -186,13 +186,6 @@ export function LampFields() {
       <Check label="만공등 제어 사용" sub="판정할 수 없을 때는 보내지 않아 마지막 색 유지"
         checked={ind.enabled} onChange={(v) => edit((d) => { d.indicator.enabled = v; }, v ? "만공등 제어 켬" : "만공등 제어 끔")} />
       <div className="form-grid form-grid--2">
-        <Field label="LED 위치">
-          <select className="select" value={ind.led_type}
-            onChange={(e) => edit((d) => { d.indicator.led_type = e.target.value as AppConfig["indicator"]["led_type"]; }, "만공등 LED 위치 변경")}>
-            <option value="internal">카메라 내장 LED</option>
-            <option value="external">카메라에 연결한 외부 등</option>
-          </select>
-        </Field>
         <Field label="같은 색 다시 보내기 (초)">
           <TextInput mono type="number" step="10" value={ind.resend_sec}
             onCommit={(v) => edit((d) => { d.indicator.resend_sec = Math.max(10, num(v)); }, "만공등 재전송 주기 변경")} />
@@ -234,10 +227,15 @@ export function LampFields() {
   );
 }
 
+// IDIS 카메라 (Web API v1.6): 만공등 ledControl. internal = 카메라 내장 LED, external = 카메라에 연결한 외부 등
+const IDIS_LED_URL = (type: "internal" | "external") =>
+  `http://{ip}:{port}/cgi-bin/webSetup.cgi?action=ledControl&mode=0&type=${type}&color={color_hex}`;
+
 // IDIS 카메라 (Web API v1.6): streamIndex 1 은 동영상 전용이라 스냅샷이 안 된다
 const NEW_PROFILE: CameraProfile = {
   snapshot_url: "http://{ip}:{port}/cgi-bin/webSetup.cgi?action=videoStreamSnapshot&mode=1&streamIndex=2&channel={channel}",
   auth: "digest", user: "admin", password: "", lenses: 2, views: [[0, 0, 1, 1]],
+  led_url: IDIS_LED_URL("internal"),
 };
 const pct = (x: number) => `${Math.round(x * 1000) / 10}`;
 
@@ -283,6 +281,13 @@ export function ProfilesFields() {
                 </Field>
                 <Field label="스냅샷 주소 · {ip}, {port}에 카메라 값, {channel}에 렌즈 번호(1부터)가 들어감" className="span-2">
                   <TextInput mono value={p.snapshot_url} onCommit={(v) => setP(name, (x) => { x.snapshot_url = v.trim(); }, "스냅샷 주소 변경")} />
+                </Field>
+                <Field label="만공등 주소 · {ip}, {port}, {controller_ip}(카메라의 컨트롤러 IP), {color}(색 이름), {color_hex}(0xRRGGBB), {rgb}(RRGGBB)" className="span-2">
+                  <TextInput mono value={p.led_url} onCommit={(v) => setP(name, (x) => { x.led_url = v.trim(); }, "만공등 주소 변경")} />
+                  <span className="row row--wrap gap-1">
+                    <button type="button" className="btn btn--ghost" onClick={() => setP(name, (x) => { x.led_url = IDIS_LED_URL("internal"); }, "만공등 주소: IDIS 내장 LED")}>IDIS 내장 LED</button>
+                    <button type="button" className="btn btn--ghost" onClick={() => setP(name, (x) => { x.led_url = IDIS_LED_URL("external"); }, "만공등 주소: IDIS 외부 등")}>IDIS 외부 등</button>
+                  </span>
                 </Field>
                 <Field label="공통 사용자"><TextInput value={p.user} onCommit={(v) => setP(name, (x) => { x.user = v; }, "공통 사용자 변경")} /></Field>
                 <Field label="공통 비밀번호"><TextInput type="password" value={p.password} onCommit={(v) => setP(name, (x) => { x.password = v; }, "공통 비밀번호 변경")} /></Field>
@@ -359,6 +364,7 @@ export function FileFields() {
     <div className="row row--wrap">
       <a className="btn" href={api.exportUrl(false)}>내보내기 (비밀번호 제외)</a>
       <a className="btn" href={api.exportUrl(true)}>내보내기 (비밀번호 포함)</a>
+      <a className="btn" href={api.imagesZipUrl()} title="렌즈별 최신 원본 사진과 판정 상태(status.json)">현재 이미지 내려받기 (ZIP)</a>
       <span className="spacer" />
       <button type="button" className="btn btn--danger" onClick={() => fileRef.current?.click()}>가져오기…</button>
       <input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={onFile} />

@@ -34,6 +34,7 @@ export const api = {
   saveConfig: (cfg: AppConfig) => send<{ ok: true }>("PUT", "/api/v1/config", cfg),
   serverTest: () => send<ServerTestResult>("POST", "/api/v1/server/test", {}),
   exportUrl: (passwords: boolean) => `/api/v1/config/export${passwords ? "?passwords=true" : ""}`,
+  imagesZipUrl: () => "/api/v1/images.zip",
   /** 판정 중인 카메라의 렌즈 원본 이미지 (워커가 매 사이클 갱신) */
   latestUrl: (ip: string, lens: number, t: number) => `/api/v1/cameras/${ip}/latest?lens=${lens}&t=${t}`,
   /** 카메라에서 바로 받은 렌즈 스냅샷 (원본. 화면이 분석 영역만 잘라 보여 줌) */

@@ -142,7 +142,7 @@ def test_v1_config_migrates_to_lens_ratios():
         }
     )
     assert c.schema_version == 2
-    assert c.indicator.protocol == "idis"
+    assert "type=internal" in c.camera_profiles[next(iter(c.camera_profiles))].led_url
     prof = c.camera_profiles["p"]
     assert prof.lenses == 1 and prof.views == [(0, 0, 0.5, 0.5), (0.5, 0, 0.5, 0.5)]
     for cam in c.cameras:  # 카메라별 기준 해상도도 반영
@@ -187,19 +187,45 @@ def test_indicator_full_and_available():
 
 
 def test_idis_led_command():
-    from parkai.core.config import Camera, IndicatorCfg
-    from parkai.outputs.indicator import led_url, return_code
+    """만공등 주소는 프로필 템플릿. 기본은 IDIS ledControl, 외부 등·다른 제어기는 프로필에서 바꾼다."""
+    import pytest
+
+    from parkai.core.config import Camera, CameraProfile
+    from parkai.outputs.indicator import LedUrlError, led_ok, led_url, return_code
 
     cam = Camera(ip="192.168.0.201", port=80, profile="p")
-    url = led_url(cam, IndicatorCfg(), "purple")
+    prof = CameraProfile(snapshot_url="x")
+    url = led_url(cam, prof, "purple")
     assert (
         url
         == "http://192.168.0.201:80/cgi-bin/webSetup.cgi?action=ledControl&mode=0&type=internal&color=0x8000ff"
     )
-    assert led_url(cam, IndicatorCfg(), "red").endswith("color=0xff0000")
+    assert led_url(cam, prof, "red").endswith("color=0xff0000")
+    # 다른 제어기: 컨트롤러 IP 와 색 이름·RGB 를 쓰는 주소
+    other = CameraProfile(
+        snapshot_url="x", led_url="http://{controller_ip}/lamp?cam={ip}&c={color}&rgb={rgb}"
+    )
+    with pytest.raises(LedUrlError):
+        led_url(cam, other, "red")
+    cam2 = cam.model_copy(update={"controller_ip": "10.0.0.9"})
+    assert led_url(cam2, other, "red") == "http://10.0.0.9/lamp?cam=192.168.0.201&c=red&rgb=ff0000"
     assert return_code("returnCode=0\r\n") == 0
     assert return_code("returnCode=9999") == 9999
     assert return_code("") is None
+    assert led_ok(200, "returnCode=0") == (True, 0)
+    assert led_ok(200, "returnCode=9999") == (False, 9999)
+    assert led_ok(200, "OK") == (True, None)  # returnCode 가 없는 장치는 2xx 면 성공
+    assert led_ok(500, "") == (False, None)
+
+
+def test_led_type_moves_into_profile_url():
+    """예전 indicator.led_type(외부 등) 설정은 프로필 만공등 주소로 옮겨진다."""
+    from parkai.core.config import AppConfig
+
+    old = {"led_type": "external", "protocol": "idis"}
+    c = AppConfig.model_validate({"camera_profiles": {"a": {"snapshot_url": "x"}}, "indicator": old})
+    assert "type=external" in c.camera_profiles["a"].led_url
+    assert "led_type" not in c.indicator.model_dump()
 
 
 # ---------- config ----------

@@ -4,9 +4,9 @@
 빈칸 색은 주차 종류(일반/경차/장애인/전기차)별로 정한다.
 판정할 수 없을 때는 명령을 보내지 않아 마지막 상태를 유지한다.
 
-IDIS 카메라 Web API v1.6 (docs/design.md 6절)
+제어 주소는 카메라 프로필의 led_url 템플릿 (HTTP GET). 기본은 IDIS 카메라 Web API v1.6:
     GET http://<ip>:<port>/cgi-bin/webSetup.cgi?action=ledControl&mode=0&type=internal&color=0xRRGGBB
-    응답 본문 returnCode=0 이면 성공 (9999: 외부 등 없음 등)
+    응답이 2xx 이고, 본문에 returnCode= 가 있으면 0 이어야 성공 (IDIS 9999: 외부 등 없음 등)
 - 색이 바뀔 때 보내고, 같은 색이어도 resend_sec 마다 다시 보낸다 (카메라 재부팅 대비)
 - 전송은 별도 스레드에서 한다 (카메라가 응답하지 않아도 판정 주기가 밀리지 않게)
 """
@@ -49,12 +49,30 @@ def decide_color(
     return None
 
 
-def led_url(cam: Camera, cfg: IndicatorCfg, color: str) -> str:
+class LedUrlError(ValueError):
+    pass
+
+
+def led_url(cam: Camera, profile: CameraProfile, color: str) -> str:
+    """프로필의 만공등 주소 템플릿을 채운다. {controller_ip} 를 쓰는데 카메라에 없으면 LedUrlError."""
     rgb = LED_RGB.get(color, LED_RGB["green"])
-    return (
-        f"http://{cam.ip}:{cam.port}/cgi-bin/webSetup.cgi"
-        f"?action=ledControl&mode=0&type={cfg.led_type}&color=0x{rgb:06x}"
+    if "{controller_ip}" in profile.led_url and not cam.controller_ip:
+        raise LedUrlError(f"{cam.ip}: 만공등 주소에 {{controller_ip}} 가 있는데 컨트롤러 IP 가 없습니다")
+    return profile.led_url.format(
+        ip=cam.ip,
+        ipaddress=cam.ip,
+        port=cam.port,
+        controller_ip=cam.controller_ip or "",
+        color=color,
+        color_hex=f"0x{rgb:06x}",
+        rgb=f"{rgb:06x}",
     )
+
+
+def led_ok(status_code: int, body: str) -> tuple[bool, int | None]:
+    """성공 여부와 returnCode. 2xx 이고, 본문에 returnCode 가 있으면 0 이어야 성공."""
+    code = return_code(body) if "returnCode=" in body else None
+    return 200 <= status_code < 300 and code in (None, 0), code
 
 
 def return_code(body: str) -> int | None:
@@ -115,14 +133,14 @@ class IndicatorController:
             elif prof.auth == "digest":
                 auth = HTTPDigestAuth(prof.user, prof.password)
             try:
-                r = session.get(led_url(cam, self.cfg, color), auth=auth, timeout=3)
+                r = session.get(led_url(cam, prof, color), auth=auth, timeout=3)
                 r.raise_for_status()
-                code = return_code(r.text)
-                if code != 0:
+                ok, code = led_ok(r.status_code, r.text)
+                if not ok:
                     raise RuntimeError(f"returnCode={code}")
                 self._sent[ip] = (color, time.monotonic())
                 self.last_error.pop(ip, None)
                 self._fail_log.ok(ip)
-            except (requests.RequestException, RuntimeError) as e:
+            except (requests.RequestException, RuntimeError, LedUrlError) as e:
                 self.last_error[ip] = str(e)
                 self._fail_log.fail(ip, f"{color}: {e}")

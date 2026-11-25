@@ -40,7 +40,8 @@
       "user": "admin",
       "password": "",
       "lenses": 2,
-      "views": [[0, 0, 1, 1]]
+      "views": [[0, 0, 1, 1]],
+      "led_url": "http://{ip}:{port}/cgi-bin/webSetup.cgi?action=ledControl&mode=0&type=internal&color={color_hex}"
     }
   },
   "cameras": [
@@ -66,8 +67,6 @@
   },
   "indicator": {
     "enabled": false,
-    "protocol": "idis",
-    "led_type": "internal",
     "resend_sec": 60
   }
 }

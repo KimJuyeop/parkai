@@ -119,6 +119,7 @@ class CameraRuntime:
         # 응답 없는 카메라는 받기 제한 × 시도 횟수 × 렌즈 수만큼 주기 전체를 붙잡으므로 (렌즈 2개면 12초),
         # 한 렌즈가 응답 없으면 나머지 렌즈는 건너뛰고, 다음 주기에는 재시도 없이 한 번만 시도한다
         self.unreachable = False
+        self.fail_cycles = 0  # 연속으로 정상이 아닌 주기 수
 
 
 class Worker:
@@ -449,6 +450,11 @@ class Worker:
             except Exception as e:  # 카메라 하나의 오류가 사이클 전체를 멈추지 않게
                 log.exception("카메라 %s 처리 실패", rt.cam.ip)
                 cameras[rt.cam.ip] = {"status": "error", "error": str(e)}
+            # 연속으로 정상이 아닌 주기 수. 화면은 몇 주기 이어질 때만 '응답 없음'으로 보인다
+            # (한 번씩 튀는 실패는 로그에만)
+            c = cameras[rt.cam.ip]
+            rt.fail_cycles = 0 if c.get("status") == "ok" else rt.fail_cycles + 1
+            c["fail_cycles"] = rt.fail_cycles
         elapsed = time.perf_counter() - t0
         if cycle_no % 30 == 0:
             try:

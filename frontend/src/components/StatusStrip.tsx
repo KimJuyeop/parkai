@@ -1,4 +1,4 @@
-import { ago, handledHere } from "../lib/domain";
+import { ago, cameraDown, handledHere } from "../lib/domain";
 import { useCfg } from "../state/AppState";
 
 /** 사용률 막대 색: 85% 이상 빨강, 70% 이상 노랑 */
@@ -10,7 +10,7 @@ function loadClass(p: number) {
 export function StatusStrip() {
   const { cfg, status, alive, system, cycleHistory } = useCfg();
   const mine = cfg.cameras.filter((c) => handledHere(cfg, c));
-  const offline = alive ? mine.filter((c) => status.cameras[c.ip]?.status === "no_response").length : 0;
+  const offline = alive ? mine.filter((c) => cameraDown(status.cameras[c.ip])).length : 0;
   const conf = cfg.detection.classes.car?.conf;
   const res = system?.resources;
   const cpu = res?.cpu_percent;

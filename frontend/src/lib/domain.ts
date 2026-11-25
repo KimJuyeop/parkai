@@ -51,6 +51,19 @@ export function nextSlotNo(cam: Camera): number | null {
   return null;
 }
 
+/** 이 주기 수만큼 연달아 실패해야 화면에 '응답 없음'·실패 원인을 보인다 (한 번씩 튀는 실패는 로그에만) */
+export const DOWN_AFTER_CYCLES = 3;
+
+/** 카메라가 응답 없음으로 보일 상태인지 */
+export function cameraDown(cs: CameraStatus | undefined): boolean {
+  return cs?.status === "no_response" && (cs.fail_cycles ?? DOWN_AFTER_CYCLES) >= DOWN_AFTER_CYCLES;
+}
+
+/** 카메라 설정 화면에 보일 실패 원인 (몇 주기 이어질 때만) */
+export function lastingError(cs: CameraStatus | undefined): string | null {
+  return cs?.error && (cs.fail_cycles ?? DOWN_AFTER_CYCLES) >= DOWN_AFTER_CYCLES ? cs.error : null;
+}
+
 /** 이 보드가 판정하는 카메라인지 (config.py cameras_for_board 와 같은 규칙) */
 export function handledHere(cfg: AppConfig, cam: Camera): boolean {
   const me = cfg.site.board_name;

@@ -397,6 +397,8 @@ def test_unreachable_camera_does_not_hold_the_cycle(tmp_path: Path):
     w.stop()
 
     assert sts[0]["status"] == "no_response" and "건너뜀" in sts[0]["error"]
+    # 연속 실패 주기 수 (화면은 3주기 이상일 때만 '응답 없음')
+    assert [s["fail_cycles"] for s in sts] == [1, 2, 0, 0, 1, 0]
     # 응답 없음 → 렌즈2 건너뜀, 다음 주기 한 번만 → 회복한 주기도 한 번만 → 그다음부터 재시도 있음
     assert lens1.calls == [True, False, False, True, True, True]
     # 렌즈2 는 렌즈1 이 답한 주기에만 받는다. 서버 오류(5번째)는 카메라가 살아 있으므로 그대로 받는다
@@ -416,7 +418,7 @@ def test_non_image_reply_is_retried(monkeypatch):
     from parkai.worker import sources
     from parkai.worker.sources import HttpSnapshotSource, SourceError, Unreachable
 
-    monkeypatch.setattr(sources, "BUSY_RETRY_SEC", 0.01)
+    monkeypatch.setattr(sources, "BUSY_WAITS", (0.01, 0.01))
     monkeypatch.setenv("NO_PROXY", "127.0.0.1")
     jpeg = cv2.imencode(".jpg", np.zeros((8, 8, 3), np.uint8))[1].tobytes()
     refuse = (b"returnCode=301", "text/plain")
@@ -441,12 +443,12 @@ def test_non_image_reply_is_retried(monkeypatch):
     prof = CameraProfile(snapshot_url="http://{ip}:{port}/snap?ch={channel}", auth="none")
     src = HttpSnapshotSource(Camera(ip="127.0.0.1", port=srv.server_address[1], profile="p"), prof, 1.0, 1)
 
-    replies[:] = [refuse, (jpeg, "image/jpeg")]
-    assert src.fetch()[0] == jpeg and len(asked) == 2  # 두 번째에 받는다
+    replies[:] = [refuse, refuse, (jpeg, "image/jpeg")]
+    assert src.fetch()[0] == jpeg and len(asked) == 3  # 0.5초 뒤, 1초 뒤 두 번 더 받는다
     asked.clear()
     with pytest.raises(SourceError) as e:  # 계속 거절하면 그 이유 그대로 (응답은 했으니 Unreachable 아님)
         src.fetch()
-    assert not isinstance(e.value, Unreachable) and "returnCode=301" in str(e.value) and len(asked) == 2
+    assert not isinstance(e.value, Unreachable) and "returnCode=301" in str(e.value) and len(asked) == 3
     asked.clear()
     replies[:] = [refuse, (jpeg, "image/jpeg")]
     with pytest.raises(SourceError):  # 지난 주기에 응답 없던 카메라는 한 번만

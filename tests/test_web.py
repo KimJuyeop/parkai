@@ -170,3 +170,25 @@ def test_models_lists_only_folders_with_model_json(tmp_path, monkeypatch):
         {"name": "no_binary", "files": [], "note": ""},
         {"name": "ready", "files": ["model.nb"], "note": "설명"},
     ]
+
+
+def test_images_zip_has_latest_originals_and_status(tmp_path, monkeypatch):
+    """현재 이미지 내려받기: 렌즈별 최신 원본 사진 + status.json 을 압축 없이 ZIP 으로 (현장 분석용)."""
+    import io
+    import json
+    import zipfile
+
+    client, _ = make_client(tmp_path, monkeypatch)
+    assert client.get("/api/v1/images.zip").status_code == 404  # 워커가 아직 없음
+    latest = tmp_path / "run" / "latest"
+    latest.mkdir(parents=True)
+    (latest / "192.168.14.10_0.jpg").write_bytes(b"\xff\xd8a")
+    (latest / "192.168.14.10_1.jpg").write_bytes(b"\xff\xd8b")
+    (tmp_path / "run" / "status.json").write_text(json.dumps({"cameras": {}}))
+    r = client.get("/api/v1/images.zip")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/zip"
+    assert "attachment" in r.headers["content-disposition"]
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    assert sorted(z.namelist()) == ["images/192.168.14.10_0.jpg", "images/192.168.14.10_1.jpg", "status.json"]
+    assert all(i.compress_type == zipfile.ZIP_STORED for i in z.infolist())
+    assert z.read("images/192.168.14.10_1.jpg") == b"\xff\xd8b"

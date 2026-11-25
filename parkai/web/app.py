@@ -8,8 +8,10 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
+import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
@@ -24,7 +26,7 @@ from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from .. import BUILD, __version__
 from ..core.config import LED_RGB, AppConfig, load_config
 from ..core.system import board_ip, board_model, device_id, resources
-from ..outputs.indicator import led_url, return_code
+from ..outputs.indicator import LedUrlError, led_ok, led_url
 from ..outputs.server import build_payload
 from ..worker.sources import IMAGE_EXT, HttpSnapshotSource, SourceError, image_media_type, replay_folder
 
@@ -165,6 +167,28 @@ def export_config(passwords: bool = False):
     )
 
 
+@app.get("/api/v1/images.zip")
+def images_zip():
+    """워커가 지금 갖고 있는 렌즈별 최신 원본 사진과 status.json 을 ZIP 으로 (현장 분석용).
+    JPEG 는 이미 압축돼 있어 압축하지 않고 담는다 (보드 CPU 를 쓰지 않게)."""
+    files = sorted((RUN_DIR / "latest").glob("*.jpg"))
+    if not files:
+        raise HTTPException(404, "최신 이미지가 없습니다 (워커가 판정 중이 아님)")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as z:
+        for f in files:
+            z.write(f, f"images/{f.name}")
+        st = RUN_DIR / "status.json"
+        if st.exists():
+            z.write(st, "status.json")
+    name = f"parkai-images-{datetime.now().astimezone().strftime('%Y%m%d_%H%M')}.zip"
+    return Response(
+        buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store"},
+    )
+
+
 # ---------- 카메라 영상 ----------
 
 
@@ -237,18 +261,16 @@ def led_test(ip: str, color: str = Body(..., embed=True)):
         auth = HTTPBasicAuth(user, password)
     elif profile.auth == "digest":
         auth = HTTPDigestAuth(user, password)
-    url = led_url(cam, cfg.indicator, color)
+    try:
+        url = led_url(cam, profile, color)
+    except LedUrlError as e:
+        return {"ok": False, "url": profile.led_url, "error": str(e)}
     try:
         r = requests.get(url, auth=auth, timeout=cfg.runtime.fetch_timeout_sec)
     except requests.RequestException as e:
         return {"ok": False, "url": url, "error": str(e)}
-    code = return_code(r.text)
-    return {
-        "ok": r.status_code == 200 and code == 0,
-        "url": url,
-        "status_code": r.status_code,
-        "return_code": code,
-    }
+    ok, code = led_ok(r.status_code, r.text)
+    return {"ok": ok, "url": url, "status_code": r.status_code, "return_code": code}
 
 
 # ---------- 서버 전송 테스트 ----------

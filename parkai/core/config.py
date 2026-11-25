@@ -139,6 +139,13 @@ DEFAULT_SLOT_TYPES = [
 IDIS_SNAPSHOT_URL = "http://{ip}:{port}/cgi-bin/webSetup.cgi?action=videoStreamSnapshot&mode=1&streamIndex=2&channel={channel}"
 
 
+# 만공등 제어 주소 템플릿에 쓸 수 있는 값 (카메라·제어기마다 다르므로 프로필에서 바꾼다)
+LED_URL_FIELDS = ("ip", "ipaddress", "port", "controller_ip", "color", "color_hex", "rgb")
+# IDIS Web API v1.6. %s: internal(카메라 내장 LED) / external(카메라에 연결한 외부 등)
+LED_URL_IDIS = "http://{ip}:{port}/cgi-bin/webSetup.cgi?action=ledControl&mode=0&type=%s&color={color_hex}"
+DEFAULT_LED_URL = LED_URL_IDIS % "internal"
+
+
 class CameraProfile(BaseModel):
     snapshot_url: str  # {ip}, {port}, {channel}(렌즈 번호, 1부터) 치환
     auth: Literal["none", "basic", "digest"] = "digest"
@@ -147,6 +154,19 @@ class CameraProfile(BaseModel):
     lenses: int = Field(1, ge=1, le=MAX_LENSES)  # 렌즈(영상 채널) 수. 렌즈마다 사진을 따로 받는다
     # 추론할 화면 영역 [x, y, w, h] (렌즈 사진 대비 비율). 모든 렌즈에 같게 적용
     views: list[Rect] = [(0.0, 0.0, 1.0, 1.0)]
+    # 만공등 제어 주소 (HTTP GET). 응답에 returnCode= 가 있으면 0 이어야 성공
+    led_url: str = DEFAULT_LED_URL
+
+    @field_validator("led_url")
+    @classmethod
+    def _led_url_fields(cls, v: str) -> str:
+        sample = {k: "x" for k in LED_URL_FIELDS}
+        try:
+            v.format(**sample)
+        except (KeyError, IndexError, ValueError) as e:
+            names = ", ".join("{" + k + "}" for k in LED_URL_FIELDS)
+            raise ValueError(f"만공등 주소 형식 오류 ({e}). 쓸 수 있는 값: {names}") from e
+        return v
 
     @field_validator("views")
     @classmethod
@@ -215,8 +235,6 @@ class ServerCfg(BaseModel):
 
 class IndicatorCfg(BaseModel):
     enabled: bool = False
-    protocol: Literal["idis"] = "idis"  # IDIS 카메라 Web API ledControl
-    led_type: Literal["internal", "external"] = "internal"  # 카메라 내장 LED / 카메라에 연결한 외부 등
     resend_sec: float = 60.0  # 색이 같아도 이 주기마다 다시 보낸다 (카메라 재부팅 대비)
     # 빈칸이 여러 종류일 때 어느 종류의 색을 켤지 (앞일수록 먼저). 주차 종류 id 4개의 순서
     priority: list[str] = [i for i, _ in FIXED_SLOT_TYPES]
@@ -284,6 +302,16 @@ class AppConfig(BaseModel):
                 det["preset"] = "standard"  # 판정 방식 고정 (2026-11-18, docs/design.md 4절)
         if int(data.get("schema_version") or 1) < 2:
             _migrate_v1(data)
+        # 만공등 LED 위치(indicator.led_type) → 프로필의 만공등 주소 (2026-11-25, 제어 방식을 프로필마다)
+        ind = data.get("indicator")
+        led_type = ind.pop("led_type", None) if isinstance(ind, dict) else None
+        if isinstance(ind, dict):
+            ind.pop("protocol", None)
+        for prof in (data.get("camera_profiles") or {}).values():
+            if isinstance(prof, dict) and "led_url" not in prof:
+                prof["led_url"] = LED_URL_IDIS % (
+                    led_type if led_type in ("internal", "external") else "internal"
+                )
         data["schema_version"] = SCHEMA_VERSION
         return data
 

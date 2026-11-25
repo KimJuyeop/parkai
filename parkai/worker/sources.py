@@ -11,7 +11,7 @@ from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from ..core.config import Camera, CameraProfile
 
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
-BUSY_RETRY_SEC = 0.5  # 이미지가 아닌 응답을 다시 받기 전 기다림
+BUSY_WAITS = (0.5, 1.0)  # 이미지가 아닌 응답을 다시 받기 전 기다림 (초, 횟수만큼)
 
 
 class SourceError(Exception):
@@ -63,12 +63,15 @@ class HttpSnapshotSource:
     def fetch(self, retry: bool = True) -> tuple[bytes, str | None]:
         """retry=False 면 한 번만 시도한다 (지난 주기에 응답 없던 카메라: 주기 전체가 늘어나지 않게).
 
-        이미지가 아닌 응답(IDIS returnCode=301 등)은 BUSY_RETRY_SEC 뒤에 다시 받는다.
-        다른 장치의 스냅샷 요청과 겹칠 때 카메라가 가끔 거절한다 (현장 하루: 카메라별 사이클의 0.2~4.7%)."""
+        이미지가 아닌 응답(IDIS returnCode=301 등)은 BUSY_WAITS 만큼 기다렸다 다시 받는다.
+        다른 장치의 스냅샷 요청과 겹칠 때 카메라가 가끔 거절한다 (현장 하루: 카메라별 사이클의 0.2~4.7%,
+        0.5초 뒤 한 번 더 받기로 약 90% 줄었고, 남은 것을 위해 1초 뒤 한 번 더)."""
         last: Exception | None = None
         down = False
         attempts = self.retries + 1 if retry else 1
-        for i in range(attempts):
+        busy_waits = list(BUSY_WAITS) if retry else []
+        tries = 0
+        while True:
             try:
                 r = self.session.get(self.url, timeout=self.timeout)
                 if r.status_code == 401:
@@ -79,12 +82,17 @@ class HttpSnapshotSource:
                 head = r.content[:120].decode("utf-8", "replace").strip()
                 kind = r.headers.get("Content-Type")
                 last, down = SourceError(f"이미지가 아닌 응답 ({kind}): {head}"), False
-                if i + 1 < attempts:
-                    time.sleep(BUSY_RETRY_SEC)
+                if busy_waits:  # 카메라가 답은 했다: 연결 재시도 횟수와 따로, 잠깐 뒤 다시
+                    time.sleep(busy_waits.pop(0))
+                    continue
+                break
             except (requests.ConnectionError, requests.Timeout) as e:
                 last, down = e, True
             except requests.RequestException as e:
                 last, down = e, False
+            tries += 1
+            if tries >= attempts:
+                break
         if isinstance(last, SourceError):
             raise last
         raise (Unreachable if down else SourceError)(f"{self.url} - {last}")
