@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections.abc import Callable
 
@@ -59,6 +60,31 @@ class FailureLog:
         return list(self._state)
 
 
+_SHORT = (
+    ("Read timed out", "응답 시간 초과"),
+    ("ConnectTimeout", "연결 시간 초과"),
+    ("timed out", "시간 초과"),
+    ("Connection refused", "연결 거부"),
+    ("No route to host", "연결 안 됨"),
+    ("Host is unreachable", "연결 안 됨"),
+    ("Network is unreachable", "연결 안 됨"),
+    ("인증 실패", "인증 실패 (401)"),
+)
+
+
+def short_error(error: str | None, limit: int = 80) -> str:
+    """로그용으로 줄인 카메라 오류. 렌즈 앞머리('렌즈2: ')는 남기고, 긴 requests 오류는 원인만 남긴다."""
+    if not error:
+        return ""
+    parts = []
+    for part in error.split("; "):
+        head, sep, body = part.partition(": ") if part.startswith("렌즈") else ("", "", part)
+        m = re.search(r"returnCode=\d+", body)
+        reason = m.group(0) if m else next((v for k, v in _SHORT if k in body), body[:limit])
+        parts.append(f"{head}{sep}{reason}")
+    return "; ".join(parts)
+
+
 class CycleLog:
     """워커 사이클 기록: 첫 사이클, 이상 카메라가 바뀔 때는 바로, 평소에는 every 초마다 요약 한 줄."""
 
@@ -81,8 +107,15 @@ class CycleLog:
         self._max = 0.0
         self._over = 0
 
-    def add(self, cycle_sec: float, target_sec: float, cameras: int, bad: list[str]) -> None:
-        """bad: 정상이 아닌 카메라 ('IP(상태)')."""
+    def add(
+        self,
+        cycle_sec: float,
+        target_sec: float,
+        cameras: int,
+        bad: list[str],
+        reasons: dict[str, str] | None = None,
+    ) -> None:
+        """bad: 정상이 아닌 카메라 ('IP(상태)'). reasons: IP → 줄인 오류 (이상 카메라가 바뀔 때 같이 남김)."""
         now = self._clock()
         if self._bad is None:
             self._log.info("첫 사이클 %.2fs, 카메라 %d대, 이상 %s", cycle_sec, cameras, bad or "없음")
@@ -91,7 +124,8 @@ class CycleLog:
             return
         if bad != self._bad:
             if bad:
-                self._log.warning("이상 카메라 %s", bad)
+                why = "; ".join(f"{ip} {r}" for ip, r in sorted((reasons or {}).items()) if r)
+                self._log.warning("이상 카메라 %s%s", bad, f" — {why}" if why else "")
             else:
                 self._log.info("이상 카메라 없음 (모두 정상)")
             self._bad = bad

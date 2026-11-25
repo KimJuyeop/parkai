@@ -67,14 +67,17 @@ def test_one_cycle(tmp_path: Path):
         (int(136 + (175 - 136) * t), int(236 + (198 - 236) * t)) for t in (0.3, 0.5, 0.7)
     ]  # 1번 칸 선분 위
 
-    def line_is_green(img):  # draw.py 가 차량 있는 칸을 (0, 200, 0) 으로 그림
-        return all(np.abs(img[y, x].astype(int) - (0, 200, 0)).sum() < 90 for x, y in on_line)
+    def line_is_green(img, k=1.0):  # draw.py 가 차량 있는 칸을 (0, 200, 0) 으로 그림. k: 원본 대비 배율
+        px = [img[int(y * k), int(x * k)].astype(int) for x, y in on_line]
+        return all(np.abs(v - (0, 200, 0)).sum() < 90 for v in px)
 
     latest = tmp_path / "run" / "latest" / "192.168.13.21_0.jpg"
     assert latest.read_bytes() == (cam_dir / "0001.jpg").read_bytes()
     assert not line_is_green(cv2.imread(str(latest)))
     records = list((tmp_path / "data" / "results" / "192.168.13.21").glob("*.jpg"))
-    assert len(records) == 1 and line_is_green(cv2.imread(str(records[0])))
+    rec = cv2.imread(str(records[0]))
+    # 기록 이미지는 렌즈 높이 720 으로 줄여서 그린다 (960 → 720)
+    assert len(records) == 1 and rec.shape[:2] == (720, 960) and line_is_green(rec, 720 / 960)
 
 
 def test_periodic_record_saves_are_spread_over_cameras(tmp_path: Path):
@@ -399,3 +402,116 @@ def test_unreachable_camera_does_not_hold_the_cycle(tmp_path: Path):
     # 렌즈2 는 렌즈1 이 답한 주기에만 받는다. 서버 오류(5번째)는 카메라가 살아 있으므로 그대로 받는다
     assert lens2.calls == [False, True, True, True]
     assert [s["status"] for s in sts] == ["no_response", "no_response", "ok", "ok", "partial", "ok"]
+
+
+def test_non_image_reply_is_retried(monkeypatch):
+    """IDIS returnCode=301 처럼 이미지가 아닌 응답은 잠깐 뒤 다시 받는다.
+    (현장에서 다른 장치의 스냅샷 요청과 겹칠 때 카메라가 가끔 거절했다: 카메라별 사이클의 0.2~4.7%)"""
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    import pytest
+
+    from parkai.core.config import Camera, CameraProfile
+    from parkai.worker import sources
+    from parkai.worker.sources import HttpSnapshotSource, SourceError, Unreachable
+
+    monkeypatch.setattr(sources, "BUSY_RETRY_SEC", 0.01)
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+    jpeg = cv2.imencode(".jpg", np.zeros((8, 8, 3), np.uint8))[1].tobytes()
+    refuse = (b"returnCode=301", "text/plain")
+    replies: list[tuple[bytes, str]] = []
+    asked = []
+
+    class Cam(BaseHTTPRequestHandler):
+        def do_GET(self):
+            asked.append(1)
+            body, kind = replies.pop(0) if replies else refuse
+            self.send_response(200)
+            self.send_header("Content-Type", kind)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    srv = HTTPServer(("127.0.0.1", 0), Cam)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    prof = CameraProfile(snapshot_url="http://{ip}:{port}/snap?ch={channel}", auth="none")
+    src = HttpSnapshotSource(Camera(ip="127.0.0.1", port=srv.server_address[1], profile="p"), prof, 1.0, 1)
+
+    replies[:] = [refuse, (jpeg, "image/jpeg")]
+    assert src.fetch()[0] == jpeg and len(asked) == 2  # 두 번째에 받는다
+    asked.clear()
+    with pytest.raises(SourceError) as e:  # 계속 거절하면 그 이유 그대로 (응답은 했으니 Unreachable 아님)
+        src.fetch()
+    assert not isinstance(e.value, Unreachable) and "returnCode=301" in str(e.value) and len(asked) == 2
+    asked.clear()
+    replies[:] = [refuse, (jpeg, "image/jpeg")]
+    with pytest.raises(SourceError):  # 지난 주기에 응답 없던 카메라는 한 번만
+        src.fetch(retry=False)
+    assert len(asked) == 1
+    srv.shutdown()
+
+
+def test_cycle_log_names_the_reason(caplog):
+    """이상 카메라가 바뀔 때 이유를 줄여서 같이 남긴다 (현장에서 301·시간 초과를 바로 구분)."""
+    import logging
+
+    from parkai.core.logutil import CycleLog, short_error
+
+    assert short_error("렌즈2: 이미지가 아닌 응답 (text/plain): returnCode=301") == "렌즈2: returnCode=301"
+    timeout = "http://x/snap - HTTPConnectionPool(host='x'): Read timed out. (read timeout=3.0)"
+    assert short_error(timeout) == "응답 시간 초과"
+    log = logging.getLogger("test.cycle.reason")
+    c = CycleLog(log, clock=lambda: 0.0)
+    with caplog.at_level(logging.INFO, logger="test.cycle.reason"):
+        c.add(1.0, 10.0, 2, [])
+        c.add(1.0, 10.0, 2, ["10.0.0.5(partial)"], {"10.0.0.5": "렌즈2: returnCode=301"})
+    assert "10.0.0.5 렌즈2: returnCode=301" in caplog.text
+
+
+def test_record_image_is_scaled_down(tmp_path: Path):
+    """5백만 화소 렌즈 2장을 그대로 붙이지 않고 렌즈 높이 720 으로 줄여 저장한다 (인코딩·SD 쓰기 약 1/4)."""
+    data = json.loads(Path("examples/config.example.json").read_text(encoding="utf-8"))
+    cam = data["cameras"][0]
+    cam["profile"] = "IDIS 렌즈 2개"
+    cam["slots"] = [
+        {"no": 1, "lens": 0, "line": [[0.2, 0.5], [0.3, 0.5]]},
+        {"no": 2, "lens": 1, "line": [[0.2, 0.5], [0.3, 0.5]]},
+    ]
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(json.dumps(data), encoding="utf-8")
+    rng = np.random.default_rng(1)
+    for ch in (1, 2):
+        d = tmp_path / "replay" / "192.168.13.21" / f"ch{ch}"
+        d.mkdir(parents=True)
+        cv2.imwrite(str(d / "0001.jpg"), rng.integers(40, 200, (1944, 2592, 3), dtype=np.uint8))
+        (d / "0001.json").write_text(json.dumps({"boxes": [[400, 700, 1000, 1300, 0.9]]}))
+    w = Worker(
+        cfg_path, load_detector("fixture", None), tmp_path / "run", tmp_path / "data", tmp_path / "replay"
+    )
+    st = w.run_cycle(1)
+    w.stop()
+    assert st["cameras"]["192.168.13.21"]["states"] == {"1": True, "2": True}
+    rec = list((tmp_path / "data" / "results" / "192.168.13.21").glob("*.jpg"))
+    assert len(rec) == 1 and cv2.imread(str(rec[0])).shape[:2] == (720, 1920)
+    # 최신 이미지는 그대로 원본
+    assert cv2.imread(str(tmp_path / "run" / "latest" / "192.168.13.21_0.jpg")).shape[:2] == (1944, 2592)
+
+
+def test_stale_latest_images_are_removed(tmp_path: Path):
+    """설정에서 빠진 카메라·렌즈의 최신 이미지는 지운다 (현장 보드에 지운 카메라 사진이 남아 있었다)."""
+    cfg_path = tmp_path / "config.json"
+    shutil.copy("examples/config.example.json", cfg_path)
+    latest = tmp_path / "run" / "latest"
+    latest.mkdir(parents=True)
+    for name in ("192.168.99.9_0.jpg", "192.168.13.21_0.jpg", "192.168.13.21_1.jpg"):
+        (latest / name).write_bytes(b"x")
+    w = Worker(cfg_path, load_detector("fixture", None), tmp_path / "run", tmp_path / "data", None)
+    keep = {f"{ip}_{i}.jpg" for ip, rt in w.cams.items() for i in range(len(rt.sources))}
+    w.stop()
+    left = {p.name for p in latest.glob("*.jpg")}
+    assert "192.168.99.9_0.jpg" not in left and left <= keep
+    assert "192.168.13.21_0.jpg" in left

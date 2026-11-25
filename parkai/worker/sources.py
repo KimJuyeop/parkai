@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import requests
@@ -10,6 +11,7 @@ from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from ..core.config import Camera, CameraProfile
 
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+BUSY_RETRY_SEC = 0.5  # 이미지가 아닌 응답을 다시 받기 전 기다림
 
 
 class SourceError(Exception):
@@ -59,23 +61,32 @@ class HttpSnapshotSource:
             self.session.auth = HTTPDigestAuth(user, password)
 
     def fetch(self, retry: bool = True) -> tuple[bytes, str | None]:
-        """retry=False 면 한 번만 시도한다 (지난 주기에 응답 없던 카메라: 주기 전체가 늘어나지 않게)."""
+        """retry=False 면 한 번만 시도한다 (지난 주기에 응답 없던 카메라: 주기 전체가 늘어나지 않게).
+
+        이미지가 아닌 응답(IDIS returnCode=301 등)은 BUSY_RETRY_SEC 뒤에 다시 받는다.
+        다른 장치의 스냅샷 요청과 겹칠 때 카메라가 가끔 거절한다 (현장 하루: 카메라별 사이클의 0.2~4.7%)."""
         last: Exception | None = None
         down = False
-        for _ in range(self.retries + 1 if retry else 1):
+        attempts = self.retries + 1 if retry else 1
+        for i in range(attempts):
             try:
                 r = self.session.get(self.url, timeout=self.timeout)
                 if r.status_code == 401:
                     raise SourceError("인증 실패 (401): 사용자/비밀번호 또는 인증 방식(basic/digest) 확인")
                 r.raise_for_status()
-                if not _looks_like_image(r.content):
-                    head = r.content[:120].decode("utf-8", "replace")
-                    raise SourceError(f"이미지가 아닌 응답 ({r.headers.get('Content-Type')}): {head}")
-                return r.content, None
+                if _looks_like_image(r.content):
+                    return r.content, None
+                head = r.content[:120].decode("utf-8", "replace").strip()
+                kind = r.headers.get("Content-Type")
+                last, down = SourceError(f"이미지가 아닌 응답 ({kind}): {head}"), False
+                if i + 1 < attempts:
+                    time.sleep(BUSY_RETRY_SEC)
             except (requests.ConnectionError, requests.Timeout) as e:
                 last, down = e, True
             except requests.RequestException as e:
                 last, down = e, False
+        if isinstance(last, SourceError):
+            raise last
         raise (Unreachable if down else SourceError)(f"{self.url} - {last}")
 
 

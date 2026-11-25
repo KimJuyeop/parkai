@@ -31,7 +31,7 @@ from ..core.config import AppConfig, Camera, StabilizeCfg, load_config
 from ..core.geometry import Box
 from ..core.image_check import FrozenDetector, ImageStatus, inspect_view
 from ..core.layout import split_views
-from ..core.logutil import CycleLog, FailureLog
+from ..core.logutil import CycleLog, FailureLog, short_error
 from ..core.stabilizer import CameraStabilizer
 from ..core.system import board_ip, device_id
 from ..outputs.indicator import IndicatorController, decide_color
@@ -50,6 +50,9 @@ class Prepared:
     frames: list[LensFrame] = field(default_factory=list)
     timings: dict[str, float] = field(default_factory=dict)
     error: str | None = None
+
+
+RECORD_MAX_H = 720  # 기록 이미지: 렌즈 한 장 높이 상한 (px)
 
 
 def _now_iso() -> str:
@@ -187,6 +190,14 @@ class Worker:
                     rt.stabilizer, rt.states = old.stabilizer, old.states
                 self.cams[ip] = rt
             rt.stabilizer.set_counts(stab.to_occupied, stab.to_empty)
+        self._clean_latest()
+
+    def _clean_latest(self) -> None:
+        """설정에서 빠진 카메라·렌즈의 최신 이미지를 지운다 (RAM 디스크에 옛 사진이 남지 않게)."""
+        keep = {f"{ip}_{i}.jpg" for ip, rt in self.cams.items() for i in range(len(rt.sources))}
+        for f in (self.run_dir / "latest").glob("*.jpg"):
+            if f.name not in keep:
+                f.unlink(missing_ok=True)
 
     # ---------- 단계 1: 수신 + 디코딩 + 화면 검사 (스레드 풀) ----------
 
@@ -342,8 +353,16 @@ class Worker:
             if f.image is None:
                 continue
             w, h = f.size
+            # 확인용이라 렌즈 한 장 높이를 RECORD_MAX_H 로 줄여 그린다. 5백만 화소 렌즈 2장을 그대로 붙이면
+            # 1천만 화소 인코딩(판정 스레드) + 장당 0.7MB 를 SD 에 쓴다 → 줄이면 인코딩·파일 약 1/4
+            k = min(1.0, RECORD_MAX_H / h)
+            img = (
+                f.image
+                if k == 1.0
+                else cv2.resize(f.image, (round(w * k), round(h * k)), interpolation=cv2.INTER_LINEAR)
+            )
             slots = [slot_in_px(s, w, h) for s in cam.slots if s.lens == f.lens]
-            pics.append(annotate(f.image, (w, h), slots, states, boxes.get(f.lens, []), ""))
+            pics.append(annotate(img, (w, h), slots, states, boxes.get(f.lens, []), ""))
         if not pics:
             return
         hh = min(x.shape[0] for x in pics)
@@ -421,10 +440,10 @@ class Worker:
             n += 1
             start = time.monotonic()
             st = self.run_cycle(n)
-            bad = sorted(
-                f"{ip}({c.get('status')})" for ip, c in st["cameras"].items() if c.get("status") != "ok"
-            )
-            self._cycle_log.add(st["cycle_sec"], self.cfg.runtime.cycle_target_sec, len(st["cameras"]), bad)
+            cams = st["cameras"]
+            bad = sorted(f"{ip}({c.get('status')})" for ip, c in cams.items() if c.get("status") != "ok")
+            why = {ip: short_error(c.get("error")) for ip, c in cams.items() if c.get("status") != "ok"}
+            self._cycle_log.add(st["cycle_sec"], self.cfg.runtime.cycle_target_sec, len(cams), bad, why)
             wait = self.cfg.runtime.cycle_target_sec - (time.monotonic() - start)
             if wait > 0 and (max_cycles is None or n < max_cycles):
                 time.sleep(wait)
