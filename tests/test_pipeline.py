@@ -515,3 +515,46 @@ def test_stale_latest_images_are_removed(tmp_path: Path):
     left = {p.name for p in latest.glob("*.jpg")}
     assert "192.168.99.9_0.jpg" not in left and left <= keep
     assert "192.168.13.21_0.jpg" in left
+
+
+def test_jpeg_size_and_half_decode_rule():
+    """JPEG 헤더에서 크기를 읽고, 1/2 로 줄여도 1280x720 이상인 사진만 1/2 로 푼다."""
+    from parkai.worker.pipeline import _decode_half, jpeg_size
+
+    for w, h, half in [(2592, 1944, True), (2560, 1440, True), (1920, 1080, False), (2036, 880, False)]:
+        for prog in (0, 1):  # 기본·프로그레시브 JPEG
+            black = np.zeros((h, w, 3), np.uint8)
+            data = cv2.imencode(".jpg", black, [cv2.IMWRITE_JPEG_PROGRESSIVE, prog])[1]
+            assert jpeg_size(data.tobytes()) == (w, h)
+            assert _decode_half(jpeg_size(data.tobytes())) is half
+    assert jpeg_size(b"returnCode=301") is None and jpeg_size(b"\xff\xd8\xff") is None
+    assert _decode_half(None) is False
+
+
+def test_large_photo_is_decoded_at_half(tmp_path: Path):
+    """5백만 화소 사진은 1/2 로 풀어 판정하고, 칸 좌표·검출 박스(비율)는 원본과 같게 나온다."""
+    data = json.loads(Path("examples/config.example.json").read_text(encoding="utf-8"))
+    cam = data["cameras"][0]
+    cam["profile"] = "IDIS 렌즈 2개"
+    cam["slots"] = [
+        {"no": 1, "lens": 0, "line": [[0.2, 0.5], [0.3, 0.5]]},
+        {"no": 2, "lens": 1, "line": [[0.6, 0.5], [0.7, 0.5]]},
+    ]
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(json.dumps(data), encoding="utf-8")
+    rng = np.random.default_rng(2)
+    for ch, (w, h) in ((1, (2592, 1944)), (2, (1920, 1080))):  # 렌즈1 만 1/2 대상
+        d = tmp_path / "replay" / "192.168.13.21" / f"ch{ch}"
+        d.mkdir(parents=True)
+        cv2.imwrite(str(d / "0001.jpg"), rng.integers(40, 200, (h, w, 3), dtype=np.uint8))
+        box = [0.15 * w, 0.4 * h, 0.35 * w, 0.6 * h, 0.9]  # 렌즈1: 칸1 위, 렌즈2: 칸2 와 떨어짐
+        (d / "0001.json").write_text(json.dumps({"boxes": [box]}))
+    w_ = Worker(
+        cfg_path, load_detector("fixture", None), tmp_path / "run", tmp_path / "data", tmp_path / "replay"
+    )
+    st = w_.run_cycle(1)["cameras"]["192.168.13.21"]
+    w_.stop()
+    assert st["reduced"] == [0]
+    assert st["states"] == {"1": True, "2": False}
+    dets = sorted(st["dets"])
+    assert dets[0][:5] == [0, 0.15, 0.4, 0.35, 0.6] and dets[1][:5] == [1, 0.15, 0.4, 0.35, 0.6]

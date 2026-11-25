@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
@@ -30,6 +30,7 @@ class LensFrame:
     view_ok: list[bool] = field(default_factory=list)
     view_noisy: list[bool] = field(default_factory=list)  # 잡음이 많은 화면(밤) → 검출 전처리에서 평균해 줄임
     error: str | None = None
+    reduced: bool = False  # 큰 사진이라 1/2 크기로 풀었음 (image·size 는 줄인 크기)
 
     @property
     def size(self) -> tuple[int, int]:
@@ -42,7 +43,10 @@ def detect_lens(detector: Detector, frame: LensFrame, conf: dict[str, float], nm
     if frame.image is None or frame.status not in ("ok", "partial"):
         return []
     if getattr(detector, "full_frame", False):  # fixture: 렌즈 사진 좌표 박스를 그대로
-        return detector.detect(frame.image, conf, nms_iou, frame.source_key)
+        found = detector.detect(frame.image, conf, nms_iou, frame.source_key)
+        if frame.reduced:  # fixture 박스는 원본 사진 픽셀 기준이라 1/2 로 푼 사진에 맞춘다
+            found = [replace(b, x1=b.x1 / 2, y1=b.y1 / 2, x2=b.x2 / 2, y2=b.y2 / 2) for b in found]
+        return found
     boxes: list[Box] = []
     noisy = frame.view_noisy or [False] * len(frame.views)
     for v, ok, nz in zip(frame.views, frame.view_ok, noisy, strict=True):

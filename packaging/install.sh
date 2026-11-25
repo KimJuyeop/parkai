@@ -40,8 +40,13 @@ cp -r "$HERE/app/." "$DEST/"
 echo "[3/5] Python 환경 (오프라인 wheel)"
 # 시스템 패키지(OpenCV, numpy, stai_mpu)를 그대로 쓰기 위해 --system-site-packages
 python3 -m venv --system-site-packages "$DEST/venv"
-# 소스 폴더가 아니라 미리 만든 wheel 을 설치한다 (소스 설치는 setuptools 가 필요한데 오프라인 번들에 없음)
-"$DEST/venv/bin/pip" install --no-index --find-links "$HERE/wheels" parkai
+# 라이브러리는 번들에 고정한 버전을 venv 에 깐다. --ignore-installed 가 없으면 보드 시스템에 이미 있는
+# fastapi·pydantic 등을 그대로 써서 보드마다 버전이 달라진다 (첫 현장 보드: 시스템의 fastapi 0.161.1 을 씀)
+"$DEST/venv/bin/pip" install --no-index --find-links "$HERE/wheels" --ignore-installed -r "$HERE/requirements-board.txt"
+# 소스 폴더가 아니라 미리 만든 wheel 을 설치한다 (소스 설치는 setuptools 가 필요한데 오프라인 번들에 없음).
+# 의존성은 위에서 깔았고 numpy·OpenCV 는 시스템 것을 쓰므로 --no-deps
+"$DEST/venv/bin/pip" install --no-index --find-links "$HERE/wheels" --no-deps parkai
+"$DEST/venv/bin/python" -c "import fastapi, pydantic; print('라이브러리:', 'fastapi', fastapi.__version__, 'pydantic', pydantic.VERSION)"
 
 echo "[4/5] 설정"
 if [ ! -f "$DATA/config.json" ]; then

@@ -47,6 +47,7 @@ python3 -m pip wheel --no-deps --wheel-dir "$STAGE/wheels" "$STAGE/app"
 rm -rf "$STAGE/app/build" "$STAGE/app/"*.egg-info
 
 cp "$ROOT/packaging/install.sh" "$STAGE/"
+cp "$ROOT/packaging/requirements-board.txt" "$STAGE/"
 cp "$ROOT/packaging/systemd/"*.service "$STAGE/systemd/"
 mkdir -p "$STAGE/journald"
 cp "$ROOT/packaging/journald/parkai.conf" "$STAGE/journald/"

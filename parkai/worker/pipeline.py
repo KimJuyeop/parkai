@@ -52,6 +52,42 @@ class Prepared:
     error: str | None = None
 
 
+HALF_MIN = (1280, 720)  # 1/2 로 줄여도 이 크기 이상인 사진만 1/2 로 푼다 (가로, 세로)
+
+
+def jpeg_size(data: bytes) -> tuple[int, int] | None:
+    """JPEG 헤더(SOF)에서 (가로, 세로)를 읽는다. 풀지 않고 크기만 본다. JPEG 가 아니면 None."""
+    if data[:2] != b"\xff\xd8":
+        return None
+    i, n = 2, len(data)
+    while i + 9 < n:
+        if data[i] != 0xFF:
+            return None
+        marker = data[i + 1]
+        if marker == 0xFF:  # 채움 바이트
+            i += 1
+            continue
+        if marker in (0xD8, 0x01) or 0xD0 <= marker <= 0xD7:  # 길이 없는 표지
+            i += 2
+            continue
+        seg = int.from_bytes(data[i + 2 : i + 4], "big")
+        if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):  # SOF
+            h = int.from_bytes(data[i + 5 : i + 7], "big")
+            w = int.from_bytes(data[i + 7 : i + 9], "big")
+            return w, h
+        i += 2 + seg
+    return None
+
+
+def _decode_half(size: tuple[int, int] | None) -> bool:
+    """큰 사진은 JPEG 를 처음부터 1/2 크기로 푼다 (풀기·화면 검사 CPU 약 1/2.3, 메모리 1/4).
+
+    모델 입력이 480x480 이라 줄여도 판정은 같다: 첫 현장 5백만 화소(2592x1944) 22렌즈 47칸 x 6순간
+    = 282건 모두 같음. 1/2 로 줄이면 1280x720 보다 작아지는 사진은 그대로 푼다
+    (2036x880 카메라를 1/2 로 풀었더니 놓치는 차가 있었다)."""
+    return size is not None and size[0] // 2 >= HALF_MIN[0] and size[1] // 2 >= HALF_MIN[1]
+
+
 RECORD_MAX_H = 720  # 기록 이미지: 렌즈 한 장 높이 상한 (px)
 
 
@@ -216,7 +252,9 @@ class Worker:
         timings["fetch"] = timings.get("fetch", 0) + time.perf_counter() - t
 
         t = time.perf_counter()
-        img = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
+        reduced = _decode_half(jpeg_size(jpeg))
+        flag = cv2.IMREAD_REDUCED_COLOR_2 if reduced else cv2.IMREAD_COLOR
+        img = cv2.imdecode(np.frombuffer(jpeg, np.uint8), flag)
         timings["decode"] = timings.get("decode", 0) + time.perf_counter() - t
         if img is None:
             return LensFrame(lens, "decode_error", error="이미지를 읽을 수 없습니다")
@@ -225,14 +263,14 @@ class Worker:
         chk = self.cfg.detection.image_check
         if self.replay_dir is None and rt.frozen[lens].update(jpeg, chk.frozen_cycles):
             timings["check"] = timings.get("check", 0) + time.perf_counter() - t
-            return LensFrame(lens, "frozen", img, jpeg, key)
+            return LensFrame(lens, "frozen", img, jpeg, key, reduced=reduced)
         views = split_views(img, self.cfg.camera_profiles[cam.profile].views)
         checks = [inspect_view(cv2.cvtColor(v.image, cv2.COLOR_BGR2GRAY), chk) for v in views]
         view_ok = [st == ImageStatus.OK for st, _ in checks]
         view_noisy = [nz for _, nz in checks]
         status = "ok" if all(view_ok) else "partial" if any(view_ok) else checks[0][0].value
         timings["check"] = timings.get("check", 0) + time.perf_counter() - t
-        return LensFrame(lens, status, img, jpeg, key, views, view_ok, view_noisy)
+        return LensFrame(lens, status, img, jpeg, key, views, view_ok, view_noisy, reduced=reduced)
 
     def _prepare(self, rt: CameraRuntime) -> Prepared:
         timings: dict[str, float] = {}
@@ -298,6 +336,9 @@ class Worker:
         info["sent"] = complete
         info["boxes"] = sum(len(b) for b in boxes.values())
         info["flicker"] = rt.stabilizer.stats()  # 워커가 켜진 뒤 한 주기 깜빡임·상태 변경 횟수 (현장 시험용)
+        reduced = [f.lens for f in p.frames if f.reduced]
+        if reduced:  # 큰 사진이라 1/2 크기로 푼 렌즈 (0부터)
+            info["reduced"] = reduced
         smoothed = [f.lens for f in p.frames if any(f.view_noisy)]
         if smoothed:  # 잡음이 많아(밤) 평균해 줄인 렌즈 (0부터). 현장에서 언제 켜지는지 확인용
             info["smoothed"] = smoothed
@@ -400,7 +441,9 @@ class Worker:
         futures = {self.pool.submit(self._prepare, rt): rt for rt in self.cams.values()}
         cameras: dict[str, dict] = {}
         for fut in as_completed(futures):
-            rt = futures[fut]
+            # 처리한 카메라의 풀린 사진을 사이클 끝까지 쥐고 있지 않는다. 쥐고 있으면
+            # 5백만 화소 30장(장당 15MB)이 한꺼번에 메모리에 남는다 (현장 워커 RSS 약 500~650MB)
+            rt = futures.pop(fut)
             try:
                 cameras[rt.cam.ip] = self._process(rt, fut.result())
             except Exception as e:  # 카메라 하나의 오류가 사이클 전체를 멈추지 않게
